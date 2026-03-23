@@ -8,11 +8,13 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../../hooks";
+import { useAuth, useBookingDetail } from "../../hooks";
 import COLORS from "../../constants/colors";
 import ProfileInfoSection from "../../components/profile/ProfileInfoSection";
 import TicketHistorySection from "../../components/profile/TicketHistorySection";
+import BookingDetailOverlay from "../../components/profile/BookingDetailOverlay";
 
 const TABS = {
   INFO: "info",
@@ -43,8 +45,11 @@ const formatBirthday = (dateString) => {
   return `${day}/${month}/${year}`;
 };
 
-const ProfileScreen = () => {
-  const { user, logout, isLoading } = useAuth();
+const ProfileScreen = ({ navigation }) => {
+  const nav = navigation || useNavigation();
+  const { user, logout, isLoading, isAuthenticated } = useAuth();
+  const { selectedBooking, openBookingDetail, closeBookingDetail } =
+    useBookingDetail();
   const [activeTab, setActiveTab] = useState(TABS.INFO);
 
   const fullName = useMemo(() => {
@@ -69,6 +74,10 @@ const ProfileScreen = () => {
     ]);
   };
 
+  const onPressLogin = () => {
+    nav.getParent()?.navigate("Auth");
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-black">
       <ScrollView
@@ -76,7 +85,7 @@ const ProfileScreen = () => {
         contentContainerStyle={{ paddingBottom: 28 }}
       >
         <View className="px-4 pt-2">
-          <View className="flex-row items-center mt-4">
+          <View className="mt-4 flex-row items-center">
             <View
               className="h-20 w-20 items-center justify-center overflow-hidden rounded-full border"
               style={{ borderColor: COLORS.secondary, borderWidth: 2 }}
@@ -159,7 +168,7 @@ const ProfileScreen = () => {
               onEdit={() => onPressPlaceholderAction("Chỉnh sửa")}
             />
           ) : (
-            <TicketHistorySection />
+            <TicketHistorySection onSelectBooking={openBookingDetail} />
           )}
 
           <View
@@ -193,26 +202,58 @@ const ProfileScreen = () => {
               </TouchableOpacity>
             ))}
 
-            <TouchableOpacity
-              className="flex-row items-center justify-between px-4 py-4"
-              disabled={isLoading}
-              onPress={onPressLogout}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-                <Text className="ml-3 text-xl font-semibold text-[#FF3B30]">
-                  Đăng xuất
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={COLORS.gray[600]}
-              />
-            </TouchableOpacity>
+            {isAuthenticated ? (
+              <TouchableOpacity
+                className="flex-row items-center justify-between px-4 py-4"
+                disabled={isLoading}
+                onPress={onPressLogout}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
+                  <Text className="ml-3 text-xl font-semibold text-[#FF3B30]">
+                    Đăng xuất
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={COLORS.gray[600]}
+                />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                className="flex-row items-center justify-between px-4 py-4"
+                onPress={onPressLogin}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons
+                    name="log-in-outline"
+                    size={20}
+                    color={COLORS.secondary}
+                  />
+                  <Text
+                    className="ml-3 text-xl font-semibold"
+                    style={{ color: COLORS.secondary }}
+                  >
+                    Đăng nhập
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={COLORS.gray[600]}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
+
+      <BookingDetailOverlay
+        booking={selectedBooking}
+        visible={Boolean(selectedBooking)}
+        onClose={closeBookingDetail}
+      />
     </SafeAreaView>
   );
 };
