@@ -1,79 +1,18 @@
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
     View,
     Text,
     FlatList,
     TouchableOpacity,
     StyleSheet,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
 import COLORS from "../../constants/colors";
-
-const MOCK_NEWS = [
-    {
-        _id: "n1",
-        title: "Liên hoan phim Quốc tế Hà Nội 2026 chính thức khởi động",
-        category: "SỰ KIỆN",
-        date: "28/02/2026",
-        imageUrl:
-            "https://images.unsplash.com/photo-1478720568477-152d9b164e26?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&w=700",
-        summary:
-            "Lễ hội điện ảnh lớn nhất miền Bắc chính thức khai mạc với hàng trăm bộ phim từ khắp nơi trên thế giới.",
-    },
-    {
-        _id: "n2",
-        title: "Top 10 phim bom tấn được mong chờ nhất mùa hè 2026",
-        category: "ĐIỆN ẢNH",
-        date: "25/02/2026",
-        imageUrl:
-            "https://images.unsplash.com/photo-1536440136628-849c177e76a1?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&w=700",
-        summary:
-            "Mùa hè 2026 hứa hẹn bùng nổ với loạt bom tấn đình đám từ Marvel, DC và nhiều hãng phim lớn.",
-    },
-    {
-        _id: "n3",
-        title: "Galaxy Cinema khai trương cụm rạp mới tại Thủ Đức",
-        category: "TIN TỨC",
-        date: "22/02/2026",
-        imageUrl:
-            "https://images.unsplash.com/photo-1595769816263-9b910be24d5f?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&w=700",
-        summary:
-            "Cụm rạp hiện đại nhất khu vực TP. Thủ Đức chính thức mở cửa với 12 phòng chiếu và công nghệ 4DX.",
-    },
-    {
-        _id: "n4",
-        title: "Oscar 2026: Danh sách đề cử chính thức được công bố",
-        category: "GIẢI THƯỞNG",
-        date: "20/02/2026",
-        imageUrl:
-            "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&w=700",
-        summary:
-            "Viện Hàn lâm Điện ảnh Mỹ vừa công bố danh sách đề cử Oscar lần thứ 98, với nhiều bất ngờ thú vị.",
-    },
-    {
-        _id: "n5",
-        title: "Phim Việt Nam tranh tài tại LHP Cannes 2026",
-        category: "QUỐC TẾ",
-        date: "18/02/2026",
-        imageUrl:
-            "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&w=700",
-        summary:
-            "Lần đầu tiên trong lịch sử, Việt Nam có hai bộ phim được mời tham dự tranh giải chính thức tại Cannes.",
-    },
-    {
-        _id: "n6",
-        title: "Công nghệ IMAX Laser chính thức có mặt tại Việt Nam",
-        category: "CÔNG NGHỆ",
-        date: "15/02/2026",
-        imageUrl:
-            "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&w=700",
-        summary:
-            "Trải nghiệm màn hình cong khổng lồ IMAX Laser với độ phân giải 4K và âm thanh 12 kênh lần đầu có mặt.",
-    },
-];
+import newsApi from "../../api/newsApi";
 
 const CATEGORY_COLORS = {
     "SỰ KIỆN": "#E94560",
@@ -84,13 +23,14 @@ const CATEGORY_COLORS = {
     "CÔNG NGHỆ": "#F59E0B",
 };
 
-const NewsCard = ({ item }) => (
+const NewsCard = ({ item, navigation }) => (
     <TouchableOpacity
         activeOpacity={0.8}
         style={styles.card}
+        onPress={() => navigation.navigate('NewsDetail', { id: item.id || item._id, item })}
     >
         <Image
-            source={{ uri: item.imageUrl }}
+            source={{ uri: item.imageUrl || item.image?.url }}
             style={styles.cardImage}
             contentFit="cover"
             transition={300}
@@ -119,7 +59,10 @@ const NewsCard = ({ item }) => (
                         {item.category}
                     </Text>
                 </View>
-                <Text style={styles.dateText}>{item.date}</Text>
+                    <Text style={styles.dateText}>{
+                        // display either preformatted date or ISO date
+                        typeof item.date === 'string' ? item.date : (item.date ? new Date(item.date).toLocaleDateString() : '')
+                    }</Text>
             </View>
             <Text style={styles.titleText} numberOfLines={2}>
                 {item.title}
@@ -133,6 +76,51 @@ const NewsCard = ({ item }) => (
 
 const NewsScreen = () => {
     const navigation = useNavigation();
+    const [news, setNews] = useState([]);
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [meta, setMeta] = useState(null);
+
+    const fetchNews = useCallback(
+        async ({ page: p = 1, replace = true } = {}) => {
+            try {
+                if (p === 1) setRefreshing(true);
+                else setLoading(true);
+
+                const res = await newsApi.getNewsList({ page: p, limit });
+                const list = res.data?.data || [];
+                const m = res.data?.meta || null;
+
+                setMeta(m);
+                if (p === 1) setNews(list);
+                else setNews((prev) => [...prev, ...list]);
+                setPage(p + 1);
+            } catch (error) {
+                // ignore for now; keep empty list
+            } finally {
+                setLoading(false);
+                setRefreshing(false);
+            }
+        },
+        [limit]
+    );
+
+    useEffect(() => {
+        fetchNews({ page: 1, replace: true });
+    }, [fetchNews]);
+
+    const handleRefresh = () => {
+        setPage(1);
+        fetchNews({ page: 1, replace: true });
+    };
+
+    const handleLoadMore = () => {
+        if (loading) return;
+        if (meta && meta.page && meta.totalPages && meta.page >= meta.totalPages) return;
+        fetchNews({ page, replace: false });
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -150,12 +138,25 @@ const NewsScreen = () => {
             </View>
 
             <FlatList
-                data={MOCK_NEWS}
-                renderItem={({ item }) => <NewsCard item={item} />}
-                keyExtractor={(item) => item._id}
+                data={news}
+                renderItem={({ item }) => <NewsCard item={item} navigation={navigation} />}
+                keyExtractor={(item, index) =>
+                    (item.id || item._id || item._key || (item.title ? String(item.title) : String(index)))
+                }
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.5}
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                ListFooterComponent={() =>
+                    loading ? (
+                        <View style={{ paddingVertical: 12 }}>
+                            <ActivityIndicator color={COLORS.secondary} />
+                        </View>
+                    ) : null
+                }
             />
         </SafeAreaView>
     );
