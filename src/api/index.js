@@ -6,3 +6,4 @@ export { default as theaterApi } from "./theaterApi";
 export { default as showtimeApi } from "./showtimeApi";
 export { default as bannerApi } from "./bannerApi";
 export { default as newsApi } from "./newsApi";
+export { default as ticketPriceApi } from "./ticketPriceApi";
