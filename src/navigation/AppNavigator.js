@@ -5,6 +5,7 @@ import { useAuth } from '../hooks';
 import AuthNavigator from './AuthNavigator';
 import DrawerNavigator from './DrawerNavigator';
 import { Loading } from '../components/common';
+import MovieDetailScreen from '../screens/home/MovieDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +20,7 @@ const AppNavigator = () => {
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Main">
                 <Stack.Screen name="Main" component={DrawerNavigator} />
+                <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
                 <Stack.Screen name="Auth" component={AuthNavigator} />
             </Stack.Navigator>
         </NavigationContainer>

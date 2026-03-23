@@ -28,9 +28,10 @@ const movieApi = {
     /**
      * Get movie detail by ID
      * @param {string} id
+     * @param {object} params
      */
-    getMovieById: (id) => {
-        return axiosInstance.get(`/movies/${id}`);
+    getMovieById: (id, params = {}) => {
+        return axiosInstance.get(`/movies/${id}`, { params });
     },
 };
 

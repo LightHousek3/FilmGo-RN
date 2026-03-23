@@ -114,17 +114,12 @@ const MovieCarouselItem = ({ item, index, scrollX, onPress }) => {
                         {item.title}
                     </Text>
 
-                    {/* Rating */}
+                    {/* Duration */}
                     <View className="mt-1 flex-row items-center">
-                        <Ionicons name="star" size={14} color={COLORS.gold} />
-                        <Text className="ml-1 text-sm font-semibold text-gold">
-                            {item.rating || "N/A"}
-                        </Text>
                         <Ionicons
                             name="time-outline"
                             size={14}
                             color={COLORS.gray[400]}
-                            style={{ marginLeft: 10 }}
                         />
                         <Text className="ml-1 text-xs text-gray-400">
                             {item.duration ? formatDuration(item.duration) : "N/A"}
