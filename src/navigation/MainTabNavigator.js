@@ -4,12 +4,12 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import HomeScreen from "../screens/home/HomeScreen";
-import TheaterScreen from "../screens/placeholder/TheaterScreen";
 import PriceScreen from "../screens/placeholder/PriceScreen";
 import PromotionScreen from "../screens/placeholder/PromotionScreen";
 import ProfileScreen from "../screens/placeholder/ProfileScreen";
 import COLORS from "../constants/colors";
 import STRINGS from "../constants/strings";
+import TheaterNavigator from "./TheaterNavigator";
 
 const Tab = createBottomTabNavigator();
 
@@ -70,7 +70,7 @@ const MainTabNavigator = () => {
       />
       <Tab.Screen
         name="TheaterTab"
-        component={TheaterScreen}
+        component={TheaterNavigator}
         options={{ tabBarLabel: STRINGS.tabTheater }}
       />
       <Tab.Screen
