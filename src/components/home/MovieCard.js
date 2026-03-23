@@ -50,15 +50,10 @@ const MovieCard = ({ item, onPress }) => {
                 </Text>
 
                 <View className="mt-1 flex-row items-center">
-                    <Ionicons name="star" size={12} color={COLORS.gold} />
-                    <Text className="ml-1 text-xs font-semibold text-gold">
-                        {item.rating || "N/A"}
-                    </Text>
                     <Ionicons
                         name="time-outline"
                         size={12}
                         color={COLORS.gray[400]}
-                        style={{ marginLeft: 8 }}
                     />
                     <Text className="ml-1 text-xs text-gray-400">
                         {item.duration ? formatDuration(item.duration) : "N/A"}

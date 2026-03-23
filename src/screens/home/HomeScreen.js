@@ -342,7 +342,7 @@ const MOCK_NEWS = [
     },
 ];
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
     const [nowShowing, setNowShowing] = useState([]);
     const [comingSoon, setComingSoon] = useState([]);
     const [promotions, setPromotions] = useState([]);
@@ -457,8 +457,8 @@ const HomeScreen = () => {
     }, [fetchData, location]);
 
     const handleMoviePress = useCallback((movie) => {
-        // TODO: navigate to movie detail screen
-    }, []);
+        navigation.navigate("MovieDetail", { movie });
+    }, [navigation]);
 
     // Single location button shared by both carousels
     const locationBtn = useMemo(
