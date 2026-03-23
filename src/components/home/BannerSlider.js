@@ -4,6 +4,7 @@ import {
     Dimensions,
     TouchableOpacity,
     FlatList,
+    StyleSheet
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,7 +12,8 @@ import Config from "../../config";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BANNER_HEIGHT = 200;
-const BANNER_AUTO_SLIDE_INTERVAL = Config.ui.bannerAutoSlideInterval;
+const BANNER_AUTO_SLIDE_INTERVAL = Config.ui.bannerAutoSlideInterval || 3000;
+const MULTIPLIER = 50; // Multiplex to simulate infinite scroll without jumping
 
 const PLACEHOLDER_BANNERS = [
     {
@@ -35,76 +37,55 @@ const BannerSlider = ({ banners = PLACEHOLDER_BANNERS, onBannerPress }) => {
     const flatListRef = useRef(null);
     const [currentIndex, setCurrentIndex] = useState(0);
 
-    // These refs are only ever accessed from the JS thread (setTimeout / setInterval / event handlers)
-    // so they never enter a worklet context — no "Tried to modify key current" error possible.
-    const extIdxRef = useRef(1);      // position in extendedData (accounts for clone prefix)
-    const isScrollingRef = useRef(false); // guard to prevent timer + manual swipe overlap
+    const data = banners && banners.length > 0 ? banners : PLACEHOLDER_BANNERS;
+    const dataLength = data.length;
 
-    const data = banners.length > 0 ? banners : PLACEHOLDER_BANNERS;
-
-    // Infinite-loop clone strategy: [last, ...originals, first]
+    // Create a deeply multiplexed array for true zero-flicker infinite scroll
     const extendedData = useMemo(() => {
-        if (data.length <= 1) return data;
-        return [
-            { ...data[data.length - 1], _eid: "clone-left" },
-            ...data.map((item, i) => ({ ...item, _eid: `real-${i}` })),
-            { ...data[0], _eid: "clone-right" },
-        ];
-    }, [data]);
+        if (dataLength <= 1) return data;
+        return Array(MULTIPLIER).fill(data).flat().map((item, index) => ({
+            ...item,
+            _uniqueId: `${item._id || item.id || 'banner'}-${index}`
+        }));
+    }, [data, dataLength]);
 
-    // Jump to first real item after mount (skip clone-left at index 0)
+    // Calculate middle to start
+    const initialIndex = dataLength > 1 ? Math.floor(MULTIPLIER / 2) * dataLength : 0;
+    const realIndexRef = useRef(initialIndex);
+
+    // Auto-slide
     useEffect(() => {
-        if (data.length <= 1) return;
-        const timer = setTimeout(() => {
-            flatListRef.current?.scrollToOffset({ offset: SCREEN_WIDTH, animated: false });
-        }, 0);
-        return () => clearTimeout(timer);
-    }, [data.length]);
-
-    // Auto-slide every BANNER_AUTO_SLIDE_INTERVAL ms
-    useEffect(() => {
-        if (data.length <= 1) return;
-
+        if (dataLength <= 1) return;
         const interval = setInterval(() => {
-            if (isScrollingRef.current) return;
-            isScrollingRef.current = true;
-
-            const nextIdx = extIdxRef.current + 1;
-            flatListRef.current?.scrollToOffset({
-                offset: nextIdx * SCREEN_WIDTH,
+            realIndexRef.current += 1;
+            flatListRef.current?.scrollToIndex({
+                index: realIndexRef.current,
                 animated: true,
             });
         }, BANNER_AUTO_SLIDE_INTERVAL);
 
         return () => clearInterval(interval);
-    }, [data.length]);
+    }, [dataLength]);
 
-    // After each swipe or auto-slide settles, handle clone teleportation
-    const handleMomentumScrollEnd = useCallback(
-        (e) => {
-            const x = e.nativeEvent.contentOffset.x;
-            const landedIdx = Math.round(x / SCREEN_WIDTH);
+    const dataLengthRef = useRef(dataLength);
+    useEffect(() => {
+        dataLengthRef.current = dataLength;
+    }, [dataLength]);
 
-            isScrollingRef.current = false;
-            extIdxRef.current = landedIdx;
-
-            if (landedIdx <= 0) {
-                // Landed on left clone → jump instantly to last real item
-                const realOffset = data.length * SCREEN_WIDTH;
-                extIdxRef.current = data.length;
-                setCurrentIndex(data.length - 1);
-                flatListRef.current?.scrollToOffset({ offset: realOffset, animated: false });
-            } else if (landedIdx >= data.length + 1) {
-                // Landed on right clone → jump instantly to first real item
-                extIdxRef.current = 1;
-                setCurrentIndex(0);
-                flatListRef.current?.scrollToOffset({ offset: SCREEN_WIDTH, animated: false });
-            } else {
-                setCurrentIndex(landedIdx - 1);
+    const onViewableItemsChanged = useRef(({ viewableItems }) => {
+        if (viewableItems && viewableItems.length > 0) {
+            const index = viewableItems[0].index;
+            if (index != null && dataLengthRef.current > 0) {
+                realIndexRef.current = index;
+                setCurrentIndex(index % dataLengthRef.current);
             }
-        },
-        [data.length]
-    );
+        }
+    }).current;
+
+    const viewabilityConfig = useRef({
+        itemVisiblePercentThreshold: 50,
+        minimumViewTime: 100
+    }).current;
 
     const renderItem = useCallback(
         ({ item }) => (
@@ -114,7 +95,7 @@ const BannerSlider = ({ banners = PLACEHOLDER_BANNERS, onBannerPress }) => {
                 style={{ width: SCREEN_WIDTH }}
             >
                 <Image
-                    source={{ uri: item.imageUrl }}
+                    source={{ uri: item.imageUrl || item.image?.url }}
                     style={{ width: SCREEN_WIDTH, height: BANNER_HEIGHT }}
                     contentFit="cover"
                     transition={300}
@@ -129,7 +110,9 @@ const BannerSlider = ({ banners = PLACEHOLDER_BANNERS, onBannerPress }) => {
         [onBannerPress]
     );
 
-    const keyExtractor = useCallback((_item, index) => `banner-${index}`, []);
+    const keyExtractor = useCallback((item) => item._uniqueId || item.id || Math.random().toString(), []);
+
+    if (!data || data.length === 0) return null;
 
     return (
         <View className="relative">
@@ -141,30 +124,37 @@ const BannerSlider = ({ banners = PLACEHOLDER_BANNERS, onBannerPress }) => {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={handleMomentumScrollEnd}
-                scrollEventThrottle={16}
-                getItemLayout={(_d, index) => ({
+                initialScrollIndex={initialIndex}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                getItemLayout={(_, index) => ({
                     length: SCREEN_WIDTH,
                     offset: SCREEN_WIDTH * index,
                     index,
                 })}
+                removeClippedSubviews={true}
+                initialNumToRender={3}
+                maxToRenderPerBatch={3}
+                windowSize={5}
             />
 
             {/* Dots */}
-            <View className="absolute bottom-3 w-full flex-row items-center justify-center gap-1.5">
-                {data.map((_, index) => (
-                    <View
-                        key={index}
-                        style={{
-                            height: 7,
-                            borderRadius: 4,
-                            width: index === currentIndex ? 22 : 7,
-                            backgroundColor:
-                                index === currentIndex ? "#E94560" : "rgba(255,255,255,0.4)",
-                        }}
-                    />
-                ))}
-            </View>
+            {dataLength > 1 && (
+                <View className="absolute bottom-3 w-full flex-row items-center justify-center gap-1.5">
+                    {data.map((_, index) => (
+                        <View
+                            key={index}
+                            style={{
+                                height: 7,
+                                borderRadius: 4,
+                                width: index === currentIndex ? 22 : 7,
+                                backgroundColor:
+                                    index === currentIndex ? "#E94560" : "rgba(255,255,255,0.4)",
+                            }}
+                        />
+                    ))}
+                </View>
+            )}
         </View>
     );
 };

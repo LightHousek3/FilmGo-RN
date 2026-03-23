@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo } from "react";
-import { View, Dimensions } from "react-native";
+import React, { useEffect, useMemo, useRef, useCallback } from "react";
+import { View, Dimensions, FlatList } from "react-native";
 import Animated, {
     useSharedValue,
     useAnimatedScrollHandler,
-    useAnimatedRef,
     useAnimatedStyle,
-    scrollTo,
     withTiming,
 } from "react-native-reanimated";
 import MovieCarouselItem, {
@@ -18,28 +16,21 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_INTERVAL = CARD_WIDTH + SPACING * 2;
 const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2 - SPACING;
 
-// 2 clones on each side: real items live at indices [CLONES … CLONES+n-1]
-const CLONES = 2;
-// Initial scroll offset = first real item (index CLONES) centred
-const INITIAL_OFFSET = CLONES * CARD_INTERVAL;
+// High multiplex multiplier to virtually eliminate the edges
+const MULTIPLIER = 50;
 
 /**
- * Cinema-style carousel with infinite loop.
- *
- * Extended data: [clone_n-2, clone_n-1, ...originals, clone_0, clone_1]
- *  - Real items span indices CLONES … CLONES+n-1
- *  - Two clones on each side keep neighbors populated at every edge position
- *  - On momentum-end in clone territory → silent teleport (UI thread only,
- *    no runOnJS / React state update → zero re-render flash)
- *  - Indicator dots are driven by scrollX shared value on the UI thread
+ * Enterprise-level infinite movie carousel.
+ * Uses FlatList virtualization to minimize memory overhead + "multiplex" data 
+ * to provide a seamless infinite scrolling effect without UI layout-jump flicker.
  */
 
 // ─── Animated dot ────────────────────────────────────────────────────────────
 // Fully UI-thread driven: no React state, no re-renders when active dot changes.
 const AnimatedDot = React.memo(({ index, scrollX, total }) => {
     const style = useAnimatedStyle(() => {
-        // Map any scroll position → 0-based movie index (handles clone offsets)
-        const raw = Math.round(scrollX.value / CARD_INTERVAL) - CLONES;
+        // Find which raw index we are currently looking at based on scroll
+        const raw = Math.round(scrollX.value / CARD_INTERVAL);
         const activeIdx = ((raw % total) + total) % total;
         const isActive = activeIdx === index;
         return {
@@ -52,6 +43,8 @@ const AnimatedDot = React.memo(({ index, scrollX, total }) => {
     return <Animated.View style={[{ height: 6, borderRadius: 3 }, style]} />;
 });
 
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+
 // ─── Carousel ─────────────────────────────────────────────────────────────────
 const MovieCarousel = ({
     title,
@@ -60,67 +53,53 @@ const MovieCarousel = ({
     onViewAll,
     locationButton,
 }) => {
-    const scrollRef = useAnimatedRef();
-    const scrollX = useSharedValue(INITIAL_OFFSET);
-    const moviesLength = useSharedValue(movies.length);
+    const moviesLength = movies.length;
+    const initialIndex = moviesLength > 1 ? Math.floor(MULTIPLIER / 2) * moviesLength : 0;
+    const initialOffset = initialIndex * CARD_INTERVAL;
 
-    useEffect(() => {
-        moviesLength.value = movies.length;
-    }, [movies.length]);
-
-    // [clone_n-2, clone_n-1, ...originals, clone_0, clone_1]
-    // Uses circular indexing so it works for any array length ≥ 2.
+    // Initialize scrollX with the correct offset immediately to prevent 1-frame scale jumping
+    const scrollX = useSharedValue(initialOffset);
+    const listRef = useRef(null);
+    
+    // Create a deeply multiplexed array for true zero-flicker infinite scroll
     const extendedMovies = useMemo(() => {
-        const n = movies.length;
-        if (n <= 1) return movies;
-        const at = (i) => movies[((i % n) + n) % n];
-        return [
-            { ...at(n - 2), _cloneKey: "left2" },
-            { ...at(n - 1), _cloneKey: "left1" },
-            ...movies,
-            { ...at(0), _cloneKey: "right1" },
-            { ...at(1), _cloneKey: "right2" },
-        ];
-    }, [movies]);
+        if (moviesLength <= 1) return movies;
+        return Array(MULTIPLIER).fill(movies).flat().map((item, index) => ({
+            ...item,
+            _uniqueId: `${item._id || item.id || 'movie'}-${index}`
+        }));
+    }, [movies, moviesLength]);
 
-    // Reset to first real item when the movies list changes
     useEffect(() => {
-        if (movies.length > 1) {
-            const timer = setTimeout(() => {
-                scrollX.value = INITIAL_OFFSET;
-                scrollTo(scrollRef, INITIAL_OFFSET, 0, false);
-            }, 0);
-            return () => clearTimeout(timer);
+        if (moviesLength > 1) {
+            scrollX.value = initialOffset;
         }
-    }, [movies.length]);
+    }, [moviesLength, initialOffset, scrollX]);
 
     const scrollHandler = useAnimatedScrollHandler({
         onScroll: (event) => {
             scrollX.value = event.contentOffset.x;
         },
-        onMomentumEnd: (event) => {
-            "worklet";
-            const n = moviesLength.value;
-            if (n <= 1) return;
-
-            const landedIdx = Math.round(event.contentOffset.x / CARD_INTERVAL);
-
-            if (landedIdx < CLONES) {
-                // Left-clone territory → jump forward n positions to real counterpart
-                const realOffset = (landedIdx + n) * CARD_INTERVAL;
-                scrollX.value = realOffset;
-                scrollTo(scrollRef, realOffset, 0, false);
-            } else if (landedIdx >= CLONES + n) {
-                // Right-clone territory → jump back n positions to real counterpart
-                const realOffset = (landedIdx - n) * CARD_INTERVAL;
-                scrollX.value = realOffset;
-                scrollTo(scrollRef, realOffset, 0, false);
-            }
-            // Inside real range → nothing to do; scrollX already tracks position
-        },
     });
 
-    if (!movies.length) return null;
+    const renderItem = useCallback(({ item, index }) => (
+        <MovieCarouselItem
+            item={item}
+            index={index}
+            scrollX={scrollX}
+            onPress={onMoviePress}
+        />
+    ), [onMoviePress, scrollX]);
+
+    const keyExtractor = useCallback((item) => item._uniqueId || item._id || item.id || Math.random().toString(), []);
+
+    const getItemLayout = useCallback((_, index) => ({
+        length: CARD_INTERVAL,
+        offset: CARD_INTERVAL * index,
+        index,
+    }), []);
+
+    if (!movies || movies.length === 0) return null;
 
     return (
         <View className="mt-6">
@@ -130,39 +109,36 @@ const MovieCarousel = ({
                 locationButton={locationButton}
             />
 
-            <Animated.ScrollView
-                ref={scrollRef}
+            <AnimatedFlatList
+                ref={listRef}
+                data={extendedMovies}
+                keyExtractor={keyExtractor}
+                renderItem={renderItem}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={CARD_INTERVAL}
                 decelerationRate="fast"
                 disableIntervalMomentum
-                contentOffset={{ x: INITIAL_OFFSET, y: 0 }}
                 contentContainerStyle={{ paddingHorizontal: SIDE_PADDING }}
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}
-                style={{ overflow: "visible" }}
-            >
-                {extendedMovies.map((item, index) => (
-                    <MovieCarouselItem
-                        key={`${item._id ?? item.id ?? index}${item._cloneKey ?? ""}`}
-                        item={item}
-                        index={index}
-                        scrollX={scrollX}
-                        onPress={onMoviePress}
-                    />
-                ))}
-            </Animated.ScrollView>
+                initialScrollIndex={initialIndex}
+                getItemLayout={getItemLayout}
+                removeClippedSubviews={true}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={7}
+            />
 
-            {/* Dots driven by scrollX on the UI thread — zero JS re-renders */}
-            {movies.length > 1 && (
+            {/* Dots driven by scrollX on the UI thread */}
+            {moviesLength > 1 && (
                 <View className="mt-3 flex-row items-center justify-center gap-1.5">
                     {movies.map((_, idx) => (
                         <AnimatedDot
                             key={idx}
                             index={idx}
                             scrollX={scrollX}
-                            total={movies.length}
+                            total={moviesLength}
                         />
                     ))}
                 </View>

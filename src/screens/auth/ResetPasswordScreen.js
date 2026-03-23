@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -7,50 +7,68 @@ import {
     Platform,
     ScrollView,
     Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../../hooks";
-import { Button, Input } from "../../components/common";
-import STRINGS from "../../constants/strings";
-import COLORS from "../../constants/colors";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../hooks';
+import { Button, Input } from '../../components/common';
+import STRINGS from '../../constants/strings';
+import COLORS from '../../constants/colors';
 
 const ResetPasswordScreen = ({ navigation, route }) => {
-    const { resetPassword, isLoading, error, clearError } = useAuth();
-    const token = route?.params?.token || "";
+    const { resetPassword } = useAuth();
+    const token = route?.params?.token || '';
 
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [validationErrors, setValidationErrors] = useState({});
+
+    // Local loading and error state
+    const [isResetPasswordLoading, setIsResetPasswordLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useFocusEffect(
+        useCallback(() => {
+            setError('');
+            return () => {
+                setError('');
+            };
+        }, []),
+    );
 
     const validate = useCallback(() => {
         const errors = {};
         if (!password) errors.password = STRINGS.passwordRequired;
         else if (password.length < 6) errors.password = STRINGS.passwordMin;
-        if (password !== confirmPassword)
-            errors.confirmPassword = STRINGS.passwordNotMatch;
+        if (password !== confirmPassword) errors.confirmPassword = STRINGS.passwordNotMatch;
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     }, [password, confirmPassword]);
 
     const handleReset = useCallback(async () => {
-        clearError();
+        setError('');
         if (!validate()) return;
 
+        setIsResetPasswordLoading(true);
         const result = await resetPassword(token, password);
+        setIsResetPasswordLoading(false);
+
         if (result.success) {
             Alert.alert(
                 STRINGS.success,
-                "Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập.",
-                [{ text: "OK", onPress: () => navigation.navigate("Login") }]
+                'Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập.',
+                [{ text: 'OK', onPress: () => navigation.navigate('Login') }],
             );
+        } else {
+            setError(result.message || 'Không thể đặt lại mật khẩu, vui lòng thử lại.');
         }
-    }, [password, token, validate, resetPassword, clearError, navigation]);
+    }, [password, token, validate, resetPassword, navigation]);
 
     return (
         <SafeAreaView className="flex-1 bg-dark-300">
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1"
             >
                 <ScrollView
@@ -115,7 +133,7 @@ const ResetPasswordScreen = ({ navigation, route }) => {
                         <Button
                             title={STRINGS.resetPassword}
                             onPress={handleReset}
-                            loading={isLoading}
+                            loading={isResetPasswordLoading}
                             size="lg"
                             className="mt-2"
                         />

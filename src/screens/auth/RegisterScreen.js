@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -7,23 +7,37 @@ import {
     Platform,
     ScrollView,
     Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../../hooks";
-import { Button, Input } from "../../components/common";
-import STRINGS from "../../constants/strings";
-import COLORS from "../../constants/colors";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../hooks';
+import { Button, Input } from '../../components/common';
+import STRINGS from '../../constants/strings';
+import COLORS from '../../constants/colors';
 
 const RegisterScreen = ({ navigation }) => {
-    const { register, isLoading, error, clearError } = useAuth();
+    const { register } = useAuth();
 
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [validationErrors, setValidationErrors] = useState({});
+
+    // Local loading and error state
+    const [isRegisterLoading, setIsRegisterLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useFocusEffect(
+        useCallback(() => {
+            setError('');
+            return () => {
+                setError('');
+            };
+        }, []),
+    );
 
     const validate = useCallback(() => {
         const errors = {};
@@ -33,42 +47,41 @@ const RegisterScreen = ({ navigation }) => {
         else if (!/^\S+@\S+\.\S+$/.test(email)) errors.email = STRINGS.emailInvalid;
         if (!password) errors.password = STRINGS.passwordRequired;
         else if (password.length < 6) errors.password = STRINGS.passwordMin;
-        if (password !== confirmPassword)
-            errors.confirmPassword = STRINGS.passwordNotMatch;
+        if (password !== confirmPassword) errors.confirmPassword = STRINGS.passwordNotMatch;
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     }, [firstName, lastName, email, password, confirmPassword]);
 
     const handleRegister = useCallback(async () => {
-        clearError();
+        setError('');
         if (!validate()) return;
 
+        setIsRegisterLoading(true);
         const result = await register({
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: email.trim(),
             password,
         });
+        setIsRegisterLoading(false);
 
         if (result.success) {
-            Alert.alert(
-                STRINGS.success,
-                "Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.",
-                [
-                    {
-                        text: "OK",
-                        onPress: () =>
-                            navigation.navigate("EmailVerification", { email: email.trim() }),
-                    },
-                ]
-            );
+            navigation.navigate('Auth', {
+                screen: 'EmailVerification',
+                params: {
+                    email,
+                    password,
+                },
+            });
+        } else {
+            setError(result.message || 'Đăng ký thất bại. Vui lòng thử lại.');
         }
-    }, [firstName, lastName, email, password, validate, register, clearError, navigation]);
+    }, [firstName, lastName, email, password, validate, register, navigation]);
 
     return (
         <SafeAreaView className="flex-1 bg-dark-300">
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1"
             >
                 <ScrollView
@@ -159,7 +172,7 @@ const RegisterScreen = ({ navigation }) => {
                         <Button
                             title={STRINGS.register}
                             onPress={handleRegister}
-                            loading={isLoading}
+                            loading={isRegisterLoading}
                             size="lg"
                             className="mt-2"
                         />
@@ -167,10 +180,10 @@ const RegisterScreen = ({ navigation }) => {
                         {/* Login Link */}
                         <View className="mt-6 flex-row items-center justify-center">
                             <Text className="text-sm text-gray-400">
-                                {STRINGS.alreadyHaveAccount}{" "}
+                                {STRINGS.alreadyHaveAccount}{' '}
                             </Text>
                             <TouchableOpacity
-                                onPress={() => navigation.navigate("Login")}
+                                onPress={() => navigation.navigate('Login')}
                                 activeOpacity={0.7}
                             >
                                 <Text className="text-sm font-bold text-secondary">

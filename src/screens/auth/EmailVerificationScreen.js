@@ -1,28 +1,96 @@
-import React, { useCallback } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth, useCountdown } from "../../hooks";
-import { Button } from "../../components/common";
-import STRINGS from "../../constants/strings";
-import COLORS from "../../constants/colors";
-import Config from "../../config";
+import React, { useCallback, useState } from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth, useCountdown } from '../../hooks';
+import { Button, Input } from '../../components/common';
+import STRINGS from '../../constants/strings';
+import COLORS from '../../constants/colors';
+import Config from '../../config';
 
 const { resendCooldownSeconds: RESEND_COOLDOWN_SECONDS } = Config.auth;
 
 const EmailVerificationScreen = ({ navigation, route }) => {
-    const email = route?.params?.email || "";
-    const { resendVerification, isLoading, error, clearError } = useAuth();
+    const password = route?.params?.password || '';
+    const email = route?.params?.email || '';
+    const { verifyEmail, resendVerification } = useAuth();
     const { secondsLeft, isActive, start } = useCountdown(RESEND_COOLDOWN_SECONDS);
+
+    const [code, setCode] = useState('');
+    const [validationError, setValidationError] = useState('');
+
+    // Local loading and error states
+    const [isVerifyLoading, setIsVerifyLoading] = useState(false);
+    const [isResendLoading, setIsResendLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useFocusEffect(
+        useCallback(() => {
+            setError('');
+            return () => {
+                setError('');
+            };
+        }, []),
+    );
+
+    const handleChangeCode = useCallback(
+        (value) => {
+            const numericValue = value.replace(/\D/g, '');
+            setCode(numericValue);
+            if (validationError) {
+                setValidationError('');
+            }
+        },
+        [validationError],
+    );
+
+    const handleVerify = useCallback(async () => {
+        setError('');
+
+        if (code.length !== 6) {
+            setValidationError('Vui lòng nhập mã xác thực gồm 6 chữ số.');
+            return;
+        }
+
+        setIsVerifyLoading(true);
+        const result = await verifyEmail({
+            email: email.trim(),
+            password: password.trim(),
+            code: code.trim(),
+        });
+        setIsVerifyLoading(false);
+
+        if (result.success) {
+            Alert.alert(STRINGS.success, 'Xác thực email thành công!', [
+                {
+                    text: 'OK',
+                    onPress: () => {
+                        if (!result.authenticated) {
+                            navigation.navigate('Main');
+                        }
+                    },
+                },
+            ]);
+        } else {
+            setError(result.message || 'Xác thực email thất bại.');
+        }
+    }, [code, verifyEmail, email, password, navigation]);
 
     const handleResend = useCallback(async () => {
         if (isActive || !email) return;
-        clearError();
+        setError('');
+
+        setIsResendLoading(true);
         const result = await resendVerification(email);
+        setIsResendLoading(false);
+
         if (result.success) {
             start();
+        } else {
+            setError(result.message || 'Không thể gửi lại mã xác minh.');
         }
-    }, [email, isActive, resendVerification, clearError, start]);
+    }, [email, isActive, resendVerification, start]);
 
     return (
         <SafeAreaView className="flex-1 bg-dark-300">
@@ -32,9 +100,7 @@ const EmailVerificationScreen = ({ navigation, route }) => {
                     <Ionicons name="mail-unread-outline" size={50} color={COLORS.secondary} />
                 </View>
 
-                <Text className="mb-3 text-2xl font-black text-white">
-                    {STRINGS.verifyEmail}
-                </Text>
+                <Text className="mb-3 text-2xl font-black text-white">{STRINGS.verifyEmail}</Text>
 
                 <Text className="mb-2 text-center text-sm text-gray-400">
                     {STRINGS.emailVerificationDesc}
@@ -53,6 +119,25 @@ const EmailVerificationScreen = ({ navigation, route }) => {
                     </View>
                 )}
 
+                <Input
+                    label="Mã xác thực"
+                    value={code}
+                    onChangeText={handleChangeCode}
+                    placeholder="Nhập 6 chữ số"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    error={validationError}
+                    className="w-full"
+                />
+
+                <Button
+                    title="Xác thực"
+                    onPress={handleVerify}
+                    loading={isVerifyLoading}
+                    size="lg"
+                    className="mb-3 w-full"
+                />
+
                 {/* Resend Button */}
                 <Button
                     title={
@@ -61,16 +146,16 @@ const EmailVerificationScreen = ({ navigation, route }) => {
                             : STRINGS.resendVerification
                     }
                     onPress={handleResend}
-                    loading={isLoading}
-                    disabled={isActive}
+                    loading={isResendLoading}
+                    disabled={isActive || isVerifyLoading}
                     size="lg"
-                    variant={isActive ? "outline" : "primary"}
+                    variant={isActive ? 'outline' : 'primary'}
                     className="w-full"
                 />
 
                 {/* Back to Login */}
                 <TouchableOpacity
-                    onPress={() => navigation.navigate("Login")}
+                    onPress={() => navigation.navigate('Login')}
                     className="mt-6"
                     activeOpacity={0.7}
                 >

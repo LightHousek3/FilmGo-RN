@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,20 +6,34 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../../hooks";
-import { Button, Input } from "../../components/common";
-import STRINGS from "../../constants/strings";
-import COLORS from "../../constants/colors";
+    Image,
+    Pressable,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../../hooks';
+import { Button, Input } from '../../components/common';
+import STRINGS from '../../constants/strings';
 
 const LoginScreen = ({ navigation }) => {
-    const { login, isLoading, error, clearError } = useAuth();
+    const { login } = useAuth();
 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [validationErrors, setValidationErrors] = useState({});
+
+    // Local loading and error state
+    const [isLoginLoading, setIsLoginLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useFocusEffect(
+        useCallback(() => {
+            setError('');
+            return () => {
+                setError('');
+            };
+        }, []),
+    );
 
     const validate = () => {
         const errors = {};
@@ -32,15 +46,24 @@ const LoginScreen = ({ navigation }) => {
     };
 
     const handleLogin = async () => {
-        clearError();
+        setError('');
         if (!validate()) return;
-        await login(email.trim(), password);
+
+        setIsLoginLoading(true);
+        const result = await login(email.trim(), password);
+        setIsLoginLoading(false);
+
+        if (result.success) {
+            navigation.navigate('Main');
+        } else {
+            setError(result.message || 'Đăng nhập thất bại.');
+        }
     };
 
     return (
         <SafeAreaView className="flex-1 bg-dark-300">
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1"
             >
                 <ScrollView
@@ -50,15 +73,21 @@ const LoginScreen = ({ navigation }) => {
                 >
                     <View className="flex-1 justify-center px-6 py-8">
                         {/* Logo */}
-                        <View className="mb-10 items-center">
-                            <Ionicons name="film" size={56} color={COLORS.secondary} />
-                            <Text className="mt-3 text-3xl font-black text-white">
-                                Film<Text className="text-secondary">Go</Text>
-                            </Text>
-                            <Text className="mt-2 text-sm text-gray-400">
-                                {STRINGS.tagline}
-                            </Text>
-                        </View>
+                        <Pressable onPress={() => navigation.navigate('Main')}>
+                            <View className="mb-10 items-center">
+                                <Image
+                                    source={require('../../../assets/FG-logo.png')}
+                                    className="h-16 w-16"
+                                    resizeMode="contain"
+                                />
+                                <Text className="mt-3 text-3xl font-black text-white">
+                                    Film<Text className="text-secondary">Go</Text>
+                                </Text>
+                                <Text className="mt-2 text-sm text-gray-400">
+                                    {STRINGS.tagline}
+                                </Text>
+                            </View>
+                        </Pressable>
 
                         {/* Error */}
                         {error && (
@@ -90,7 +119,7 @@ const LoginScreen = ({ navigation }) => {
 
                         {/* Forgot Password */}
                         <TouchableOpacity
-                            onPress={() => navigation.navigate("ForgotPassword")}
+                            onPress={() => navigation.navigate('ForgotPassword')}
                             className="mb-6 self-end"
                             activeOpacity={0.7}
                         >
@@ -103,17 +132,17 @@ const LoginScreen = ({ navigation }) => {
                         <Button
                             title={STRINGS.login}
                             onPress={handleLogin}
-                            loading={isLoading}
+                            loading={isLoginLoading}
                             size="lg"
                         />
 
                         {/* Register Link */}
                         <View className="mt-6 flex-row items-center justify-center">
                             <Text className="text-sm text-gray-400">
-                                {STRINGS.dontHaveAccount}{" "}
+                                {STRINGS.dontHaveAccount}{' '}
                             </Text>
                             <TouchableOpacity
-                                onPress={() => navigation.navigate("Register")}
+                                onPress={() => navigation.navigate('Register')}
                                 activeOpacity={0.7}
                             >
                                 <Text className="text-sm font-bold text-secondary">

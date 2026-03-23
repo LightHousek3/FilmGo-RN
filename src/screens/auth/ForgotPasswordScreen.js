@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,24 +6,38 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth, useCountdown } from "../../hooks";
-import { Button, Input } from "../../components/common";
-import STRINGS from "../../constants/strings";
-import COLORS from "../../constants/colors";
-import Config from "../../config";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth, useCountdown } from '../../hooks';
+import { Button, Input } from '../../components/common';
+import STRINGS from '../../constants/strings';
+import COLORS from '../../constants/colors';
+import Config from '../../config';
 
 const { resendCooldownSeconds: RESEND_COOLDOWN_SECONDS } = Config.auth;
 
 const ForgotPasswordScreen = ({ navigation }) => {
-    const { forgotPassword, isLoading, error, clearError } = useAuth();
+    const { forgotPassword } = useAuth();
     const { secondsLeft, isActive, start } = useCountdown(RESEND_COOLDOWN_SECONDS);
 
-    const [email, setEmail] = useState("");
+    const [email, setEmail] = useState('');
     const [sent, setSent] = useState(false);
-    const [validationError, setValidationError] = useState("");
+    const [validationError, setValidationError] = useState('');
+
+    // Local loading and error state
+    const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    useFocusEffect(
+        useCallback(() => {
+            setError('');
+            return () => {
+                setError('');
+            };
+        }, []),
+    );
 
     const validate = useCallback(() => {
         if (!email.trim()) {
@@ -34,34 +48,45 @@ const ForgotPasswordScreen = ({ navigation }) => {
             setValidationError(STRINGS.emailInvalid);
             return false;
         }
-        setValidationError("");
+        setValidationError('');
         return true;
     }, [email]);
 
     const handleSend = useCallback(async () => {
-        clearError();
+        setError('');
         if (!validate()) return;
 
+        setIsForgotPasswordLoading(true);
         const result = await forgotPassword(email.trim());
+        setIsForgotPasswordLoading(false);
+
         if (result.success) {
             setSent(true);
             start(); // Start 60s countdown
+        } else {
+            setError(result.message || 'Có lỗi xảy ra, vui lòng thử lại.');
         }
-    }, [email, validate, forgotPassword, clearError, start]);
+    }, [email, validate, forgotPassword, start]);
 
     const handleResend = useCallback(async () => {
         if (isActive) return;
-        clearError();
+        setError('');
+
+        setIsForgotPasswordLoading(true);
         const result = await forgotPassword(email.trim());
+        setIsForgotPasswordLoading(false);
+
         if (result.success) {
             start();
+        } else {
+            setError(result.message || 'Có lỗi xảy ra khi gửi lại email.');
         }
-    }, [email, isActive, forgotPassword, clearError, start]);
+    }, [email, isActive, forgotPassword, start]);
 
     return (
         <SafeAreaView className="flex-1 bg-dark-300">
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1"
             >
                 <ScrollView
@@ -85,7 +110,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                                 <Ionicons name="key-outline" size={40} color={COLORS.secondary} />
                             </View>
                             <Text className="text-2xl font-black text-white">
-                                {STRINGS.forgotPassword.replace("?", "")}
+                                {STRINGS.forgotPassword.replace('?', '')}
                             </Text>
                             <Text className="mt-2 text-center text-sm text-gray-400">
                                 {STRINGS.forgotPasswordDesc}
@@ -103,7 +128,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                         {sent && !error && (
                             <View className="mb-4 rounded-xl bg-green-500/10 px-4 py-3">
                                 <Text className="text-center text-sm text-green-400">
-                                    Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.
+                                    Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn.
                                 </Text>
                             </View>
                         )}
@@ -123,7 +148,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                             <Button
                                 title={STRINGS.sendResetLink}
                                 onPress={handleSend}
-                                loading={isLoading}
+                                loading={isForgotPasswordLoading}
                                 size="lg"
                                 className="mt-2"
                             />
@@ -136,7 +161,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                                             : STRINGS.sendResetLink
                                     }
                                     onPress={handleResend}
-                                    loading={isLoading}
+                                    loading={isForgotPasswordLoading}
                                     disabled={isActive}
                                     size="lg"
                                     className="mt-2"
@@ -146,7 +171,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                         {/* Back to Login */}
                         <TouchableOpacity
-                            onPress={() => navigation.navigate("Login")}
+                            onPress={() => navigation.navigate('Login')}
                             className="mt-6 items-center"
                             activeOpacity={0.7}
                         >

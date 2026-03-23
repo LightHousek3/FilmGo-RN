@@ -18,6 +18,13 @@ const theaterApi = {
     },
 
     /**
+     * Get list of unique locations (provinces/cities)
+     */
+    getLocations: () => {
+        return axiosInstance.get("/theaters/locations");
+    },
+
+    /**
      * Get nearby theaters
      * @param {{ longitude, latitude, maxDistance }} params
      */

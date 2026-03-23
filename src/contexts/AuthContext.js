@@ -1,139 +1,144 @@
-import { createContext, useReducer, useEffect, useCallback } from "react";
-import authApi from "../api/authApi";
-import storageService from "../services/storageService";
+import { createContext, useReducer, useEffect, useCallback } from 'react';
+import authApi from '../api/authApi';
+import storageService from '../services/storageService';
 
-// ─── Initial State ───────────────────────────────────
 const initialState = {
     user: null,
     isAuthenticated: false,
-    isLoading: true, // true during initial token check
-    error: null,
+    isInitialized: false,
 };
 
-// ─── Action Types ────────────────────────────────────
 const AUTH_ACTIONS = {
-    SET_LOADING: "SET_LOADING",
-    LOGIN_SUCCESS: "LOGIN_SUCCESS",
-    LOGOUT: "LOGOUT",
-    SET_ERROR: "SET_ERROR",
-    CLEAR_ERROR: "CLEAR_ERROR",
-    RESTORE_SESSION: "RESTORE_SESSION",
-    UPDATE_USER: "UPDATE_USER",
+    LOGIN_SUCCESS: 'LOGIN_SUCCESS',
+    LOGOUT: 'LOGOUT',
+    RESTORE_SESSION: 'RESTORE_SESSION',
+    UPDATE_USER: 'UPDATE_USER',
+    SET_INITIALIZED: 'SET_INITIALIZED',
 };
 
-// ─── Reducer ─────────────────────────────────────────
 const authReducer = (state, action) => {
     switch (action.type) {
-        case AUTH_ACTIONS.SET_LOADING:
-            return { ...state, isLoading: action.payload };
         case AUTH_ACTIONS.LOGIN_SUCCESS:
             return {
                 ...state,
                 user: action.payload,
                 isAuthenticated: true,
-                isLoading: false,
-                error: null,
+                isInitialized: true,
             };
+
         case AUTH_ACTIONS.LOGOUT:
             return {
                 ...state,
                 user: null,
                 isAuthenticated: false,
-                isLoading: false,
-                error: null,
+                isInitialized: true,
             };
-        case AUTH_ACTIONS.SET_ERROR:
-            return { ...state, error: action.payload, isLoading: false };
-        case AUTH_ACTIONS.CLEAR_ERROR:
-            return { ...state, error: null };
+
         case AUTH_ACTIONS.RESTORE_SESSION:
             return {
                 ...state,
                 user: action.payload,
                 isAuthenticated: true,
-                isLoading: false,
+                isInitialized: true,
             };
+
         case AUTH_ACTIONS.UPDATE_USER:
-            return { ...state, user: action.payload };
+            return {
+                ...state,
+                user: action.payload,
+            };
+
+        case AUTH_ACTIONS.SET_INITIALIZED:
+            return {
+                ...state,
+                isInitialized: action.payload,
+            };
+
         default:
             return state;
     }
 };
 
-// ─── Context ─────────────────────────────────────────
 export const AuthContext = createContext({
     ...initialState,
-    login: async () => { },
-    register: async () => { },
-    logout: async () => { },
-    forgotPassword: async () => { },
-    resetPassword: async () => { },
-    verifyEmail: async () => { },
-    resendVerification: async () => { },
-    clearError: () => { },
+    login: async () => {},
+    register: async () => {},
+    logout: async () => {},
+    forgotPassword: async () => {},
+    resetPassword: async () => {},
+    verifyEmail: async () => {},
+    resendVerification: async () => {},
 });
 
-// ─── Provider ────────────────────────────────────────
 export const AuthProvider = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
 
-    // Restore session on mount
-    useEffect(() => {
-        restoreSession();
+    const getErrorMessage = useCallback((error, fallback) => {
+        const responseData = error?.response?.data;
+
+        if (typeof responseData?.message === 'string') {
+            return responseData.message;
+        }
+
+        return fallback;
     }, []);
 
-    const restoreSession = async () => {
+    const restoreSession = useCallback(async () => {
         try {
             const token = await storageService.getAccessToken();
             const user = await storageService.getUser();
 
             if (token && user) {
                 dispatch({ type: AUTH_ACTIONS.RESTORE_SESSION, payload: user });
-            } else {
-                dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
             }
-        } catch {
-            dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-        }
-    };
-
-    const login = useCallback(async (email, password) => {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
-
-        try {
-            const response = await authApi.login({ email, password });
-            const { user, tokens: { accessToken, refreshToken } } = response.data.data;
-
-            await storageService.setAccessToken(accessToken);
-            await storageService.setRefreshToken(refreshToken);
-            await storageService.setUser(user);
-
-            dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
-            return { success: true };
-        } catch (error) {
-            const message =
-                error.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
-            dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-            return { success: false, message };
+        } finally {
+            dispatch({ type: AUTH_ACTIONS.SET_INITIALIZED, payload: true });
         }
     }, []);
 
-    const register = useCallback(async ({ firstName, lastName, email, password }) => {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+    useEffect(() => {
+        restoreSession();
+    }, [restoreSession]);
 
-        try {
-            await authApi.register({ firstName, lastName, email, password });
-            dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-            return { success: true };
-        } catch (error) {
-            const message =
-                error.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại.";
-            dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-            return { success: false, message };
-        }
-    }, []);
+    const login = useCallback(
+        async (email, password) => {
+            try {
+                const response = await authApi.login({ email, password });
+                const {
+                    user,
+                    tokens: { accessToken, refreshToken },
+                } = response.data.data;
+
+                await storageService.setAccessToken(accessToken);
+                await storageService.setRefreshToken(refreshToken);
+                await storageService.setUser(user);
+
+                dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
+                return { success: true };
+            } catch (error) {
+                return {
+                    success: false,
+                    message: getErrorMessage(error, 'Đăng nhập thất bại. Vui lòng thử lại.'),
+                };
+            }
+        },
+        [getErrorMessage],
+    );
+
+    const register = useCallback(
+        async ({ firstName, lastName, email, password }) => {
+            try {
+                await authApi.register({ firstName, lastName, email, password });
+                return { success: true };
+            } catch (error) {
+                return {
+                    success: false,
+                    message: getErrorMessage(error, 'Đăng ký thất bại. Vui lòng thử lại.'),
+                };
+            }
+        },
+        [getErrorMessage],
+    );
 
     const logout = useCallback(async () => {
         try {
@@ -142,84 +147,80 @@ export const AuthProvider = ({ children }) => {
                 await authApi.logout({ refreshToken });
             }
         } catch {
-            // Logout even if API call fails
+            // Force local sign-out even if logout request fails.
         } finally {
             await storageService.clearAll();
             dispatch({ type: AUTH_ACTIONS.LOGOUT });
         }
     }, []);
 
-    const forgotPassword = useCallback(async (email) => {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+    const forgotPassword = useCallback(
+        async (email) => {
+            try {
+                await authApi.forgotPassword({ email });
+                return { success: true };
+            } catch (error) {
+                return {
+                    success: false,
+                    message: getErrorMessage(error, 'Gửi email thất bại. Vui lòng thử lại.'),
+                };
+            }
+        },
+        [getErrorMessage],
+    );
 
-        try {
-            await authApi.forgotPassword({ email });
-            dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-            return { success: true };
-        } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                "Gửi email thất bại. Vui lòng thử lại.";
-            dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-            return { success: false, message };
-        }
-    }, []);
+    const resetPassword = useCallback(
+        async (token, password) => {
+            try {
+                await authApi.resetPassword({ token, password });
+                return { success: true };
+            } catch (error) {
+                return {
+                    success: false,
+                    message: getErrorMessage(error, 'Đặt lại mật khẩu thất bại. Vui lòng thử lại.'),
+                };
+            }
+        },
+        [getErrorMessage],
+    );
 
-    const resetPassword = useCallback(async (token, password) => {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+    const verifyEmail = useCallback(
+        async ({ email, code, password }) => {
+            try {
+                const verifyResponse = await authApi.verifyEmail({ email, code });
 
-        try {
-            await authApi.resetPassword({ token, password });
-            dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-            return { success: true };
-        } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                "Đặt lại mật khẩu thất bại. Vui lòng thử lại.";
-            dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-            return { success: false, message };
-        }
-    }, []);
+                if (email && password) {
+                    const loginResponse = await login(email, password);
+                    if (!loginResponse.success) {
+                        return loginResponse;
+                    }
+                }
 
-    const verifyEmail = useCallback(async (token) => {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+                return { success: true, authenticated: false };
+            } catch (error) {
+                return {
+                    success: false,
+                    message: getErrorMessage(error, 'Xác minh email thất bại. Vui lòng thử lại.'),
+                };
+            }
+        },
+        [getErrorMessage],
+    );
 
-        try {
-            await authApi.verifyEmail({ token });
-            dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-            return { success: true };
-        } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                "Xác minh email thất bại. Vui lòng thử lại.";
-            dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-            return { success: false, message };
-        }
-    }, []);
-
-    const resendVerification = useCallback(async (email) => {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
-
-        try {
-            await authApi.resendVerification({ email });
-            dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-            return { success: true };
-        } catch (error) {
-            const message =
-                error.response?.data?.message ||
-                "Gửi lại email thất bại. Vui lòng thử lại.";
-            dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: message });
-            return { success: false, message };
-        }
-    }, []);
-
-    const clearError = useCallback(() => {
-        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
-    }, []);
+    const resendVerification = useCallback(
+        async (email) => {
+            try {
+                await authApi.resendVerification({ email });
+                return { success: true };
+            } catch (error) {
+                return {
+                    success: false,
+                    message: getErrorMessage(error, 'Gửi lại email thất bại. Vui lòng thử lại.'),
+                };
+            }
+        },
+        [getErrorMessage],
+    );
 
     return (
         <AuthContext.Provider
@@ -232,7 +233,7 @@ export const AuthProvider = ({ children }) => {
                 resetPassword,
                 verifyEmail,
                 resendVerification,
-                clearError,
+                updateUser: (user) => dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: user }),
             }}
         >
             {children}

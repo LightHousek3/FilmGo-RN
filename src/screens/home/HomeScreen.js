@@ -19,7 +19,7 @@ import {
     NewsSection,
 } from "../../components/home";
 import { Loading } from "../../components/common";
-import { movieApi, promotionApi } from "../../api";
+import { movieApi, promotionApi, theaterApi, bannerApi, newsApi } from "../../api";
 import COLORS from "../../constants/colors";
 
 // ─── Vietnam provinces list ───────────────────────────
@@ -83,7 +83,7 @@ const LocationItem = React.memo(({ name, isActive, onSelect }) => (
 const LOCATION_KEY_EXTRACTOR = (item) => item;
 
 /** Modal bottom-sheet for picking a location */
-const LocationModal = React.memo(({ visible, onClose, selected, onSelect }) => {
+const LocationModal = React.memo(({ visible, onClose, selected, onSelect, locationsData = [] }) => {
     // Single stable callback: select value → notify parent → close sheet
     const handleSelect = useCallback(
         (name) => {
@@ -118,7 +118,7 @@ const LocationModal = React.memo(({ visible, onClose, selected, onSelect }) => {
                 <View style={locStyles.sheetHandle} />
                 <Text style={locStyles.sheetTitle}>Chọn tỉnh / thành phố</Text>
                 <FlatList
-                    data={LOCATIONS}
+                    data={locationsData}
                     keyExtractor={LOCATION_KEY_EXTRACTOR}
                     renderItem={renderItem}
                     showsVerticalScrollIndicator={false}
@@ -347,6 +347,8 @@ const HomeScreen = () => {
     const [comingSoon, setComingSoon] = useState([]);
     const [promotions, setPromotions] = useState([]);
     const [news, setNews] = useState([]);
+    const [banners, setBanners] = useState([]);
+    const [locations, setLocations] = useState(LOCATIONS); // fallback defaults
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -358,10 +360,13 @@ const HomeScreen = () => {
         try {
             const movieParams = { limit: 6, ...(loc ? { location: loc } : {}) };
 
-            const [nowShowingRes, comingSoonRes, promotionsRes] = await Promise.allSettled([
+            const [nowShowingRes, comingSoonRes, promotionsRes, bannersRes, locationsRes, newsRes] = await Promise.allSettled([
                 movieApi.getNowShowing(movieParams),
                 movieApi.getComingSoon(movieParams),
                 promotionApi.getPromotions({ status: "ACTIVE", limit: 5 }),
+                bannerApi.getBanners({ limit: 5 }),
+                theaterApi.getLocations(),
+                newsApi.getNews({ limit: 5 })
             ]);
 
             setNowShowing(
@@ -388,7 +393,32 @@ const HomeScreen = () => {
                     : MOCK_PROMOTIONS
             );
 
-            setNews(MOCK_NEWS);
+            setBanners(
+                bannersRes.status === "fulfilled" &&
+                    Array.isArray(bannersRes.value?.data?.data) &&
+                    bannersRes.value.data.data.length
+                    ? bannersRes.value.data.data
+                    : []
+            );
+
+            if (
+                locationsRes.status === "fulfilled" &&
+                Array.isArray(locationsRes.value?.data?.data) &&
+                locationsRes.value.data.data.length
+            ) {
+                // Ensure "Tất cả" is first
+                const fetchedLocs = locationsRes.value.data.data;
+                const finalLocs = fetchedLocs.includes("Tất cả") ? fetchedLocs : ["Tất cả", ...fetchedLocs];
+                setLocations(finalLocs);
+            }
+
+            setNews(
+                newsRes.status === "fulfilled" &&
+                    Array.isArray(newsRes.value?.data?.data) &&
+                    newsRes.value.data.data.length
+                    ? newsRes.value.data.data
+                    : MOCK_NEWS
+            );
         } catch {
             setNowShowing(MOCK_NOW_SHOWING);
             setComingSoon(MOCK_COMING_SOON);
@@ -455,7 +485,7 @@ const HomeScreen = () => {
                 }
             >
                 {/* Banner Slider */}
-                <BannerSlider />
+                <BannerSlider banners={banners} />
 
                 {/* Now Showing Carousel – location button filters both lists */}
                 <MovieCarousel
@@ -487,6 +517,7 @@ const HomeScreen = () => {
                 onClose={closeLocationModal}
                 selected={location}
                 onSelect={selectLocation}
+                locationsData={locations}
             />
         </View>
     );
