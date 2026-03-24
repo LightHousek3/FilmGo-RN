@@ -33,7 +33,7 @@ const NewsCard = ({ item, navigation }) => (
             source={{ uri: item.imageUrl || item.image?.url }}
             style={styles.cardImage}
             contentFit="cover"
-            transition={300}
+            transition={0}
             cachePolicy="memory-disk"
         />
         <View style={styles.cardBody}>

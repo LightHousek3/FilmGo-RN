@@ -10,6 +10,7 @@ import {
     AppState,
 } from 'react-native';
 import * as LinkingExpo from 'expo-linking';
+import Constants from 'expo-constants';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -40,11 +41,14 @@ const PaymentScreen = () => {
     const route = useRoute();
     const insets = useSafeAreaInsets();
 
-    const { bookingId, bookingData } = route.params || {};
+    // From route params
+    const { bookingId: routeBookingId, bookingData, success, status } = route.params || {};
+    const bookingId = routeBookingId || (bookingData ? bookingData._id || bookingData.id : null);
+
     const { setPendingPayment, clearPendingPayment, timeLeft, pendingBooking, setIsFabVisible } =
         usePayment();
 
-    const [loading, setLoading] = useState(!bookingData);
+    const [loading, setLoading] = useState(!bookingData || success === 'true');
     const [booking, setBooking] = useState(bookingData || null);
     const [submitting, setSubmitting] = useState(false);
     const appState = useRef(AppState.currentState);
@@ -53,6 +57,11 @@ const PaymentScreen = () => {
         if (!booking && bookingId) {
             fetchBooking();
         } else if (booking) {
+            if (booking.status === 'CONFIRMED' || booking.status === 'CANCELLED') {
+                clearPendingPayment();
+                return;
+            }
+
             // Check if we need to start or update the timer
             if (
                 !pendingBooking ||
@@ -79,6 +88,23 @@ const PaymentScreen = () => {
         };
     }, [booking, bookingId]);
 
+    useEffect(() => {
+        // If deep linked back with success param, immediately check status!
+        if (success !== undefined && bookingId) {
+            if (success === 'true') {
+                clearPendingPayment();
+            }
+            checkPaymentStatus();
+        }
+    }, [success, bookingId]);
+
+    useEffect(() => {
+        if (status === 'success' && bookingId) {
+            clearPendingPayment();
+            checkPaymentStatus();
+        }
+    }, [status, bookingId]);
+
     useFocusEffect(
         useCallback(() => {
             setIsFabVisible(false);
@@ -86,31 +112,38 @@ const PaymentScreen = () => {
         }, []),
     );
 
-    const checkPaymentStatus = async () => {
+    const checkPaymentStatus = async (retryCount = 0) => {
         try {
             const currentBookingId = bookingId || booking?._id;
             if (!currentBookingId) return;
             const response = await bookingApi.getBookingById(currentBookingId);
             if (response.data && response.data.success) {
                 const updatedBooking = response.data.data;
+
+                // Address Race condition: VNPay return vs IPN webhook
+                // If deep link already claims success="true" but DB is still PENDING, we should poll.
+                if (updatedBooking.status === 'PENDING' && success === 'true' && retryCount < 5) {
+                    setTimeout(() => {
+                        checkPaymentStatus(retryCount + 1);
+                    }, 2000);
+                    return;
+                }
+
                 setBooking(updatedBooking);
 
-                if (updatedBooking.status === 'CONFIRMED') {
+                if (
+                    updatedBooking.status === 'CONFIRMED' ||
+                    updatedBooking.status === 'CANCELLED'
+                ) {
                     clearPendingPayment();
-                    Alert.alert('Thành công', 'Thanh toán thành công! Chúc bạn xem phim vui vẻ.', [
-                        { text: 'OK', onPress: () => navigation.replace('Main') }, // Or to 'MyTickets'
-                    ]);
-                } else if (updatedBooking.status === 'CANCELLED') {
-                    clearPendingPayment();
-                    Alert.alert(
-                        'Thất bại',
-                        'Đơn hàng đã bị hủy hoặc thanh toán không thành công.',
-                        [{ text: 'OK', onPress: () => navigation.replace('Main') }],
-                    );
                 }
+                setLoading(false);
+            } else {
+                setLoading(false);
             }
         } catch (error) {
             console.log('Error polling status:', error);
+            setLoading(false);
         }
     };
 
@@ -151,7 +184,7 @@ const PaymentScreen = () => {
                             if (res.data && res.data.success) {
                                 clearPendingPayment();
                                 Alert.alert('Thành công', 'Đã hủy đơn hàng.', [
-                                    { text: 'OK', onPress: () => navigation.navigate('Main') }
+                                    { text: 'OK', onPress: () => navigation.navigate('Main') },
                                 ]);
                             }
                         } catch (error) {
@@ -161,9 +194,9 @@ const PaymentScreen = () => {
                         } finally {
                             setSubmitting(false);
                         }
-                    }
-                }
-            ]
+                    },
+                },
+            ],
         );
     };
 
@@ -175,9 +208,19 @@ const PaymentScreen = () => {
 
         try {
             setSubmitting(true);
-            const redirectUrl = LinkingExpo.createURL('');
+            // Append booking id so app can know context on deep link return
+            const currentBookingId = booking?._id || booking?.id || bookingId;
+            const isExpoGo = Constants.appOwnership === 'expo';
+            const redirectUrl = isExpoGo
+                ? LinkingExpo.createURL('payment-result', {
+                      queryParams: {
+                          bookingId: String(currentBookingId),
+                      },
+                  })
+                : `filmgo://payment-result?bookingId=${encodeURIComponent(currentBookingId)}`;
+
             const paymentUrlRes = await paymentApi.initiateVnpay({
-                bookingId: booking._id || booking.id,
+                bookingId: currentBookingId,
                 locale: 'vn',
                 appReturnUrl: redirectUrl,
             });
@@ -205,7 +248,45 @@ const PaymentScreen = () => {
     const isFinished =
         booking && (booking.status === 'CONFIRMED' || booking.status === 'CANCELLED');
 
-    if (timeLeft <= 0 && !isFinished) {
+    if (isFinished) {
+        return (
+            <View
+                style={[
+                    styles.container,
+                    {
+                        paddingTop: insets.top,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 20,
+                    },
+                ]}
+            >
+                <Ionicons
+                    name={booking.status === 'CONFIRMED' ? 'checkmark-circle' : 'close-circle'}
+                    size={64}
+                    color={booking.status === 'CONFIRMED' ? COLORS.success : '#EF4444'}
+                />
+                <Text style={styles.expiredTitle}>
+                    {booking.status === 'CONFIRMED'
+                        ? 'Thanh toán thành công'
+                        : 'Giao dịch thất bại'}
+                </Text>
+                <Text style={styles.expiredDesc}>
+                    {booking.status === 'CONFIRMED'
+                        ? 'Chúc bạn xem phim vui vẻ!'
+                        : 'Đơn hàng đã bị hủy hoặc thanh toán không thành công.'}
+                </Text>
+                <TouchableOpacity
+                    style={styles.backHomeBtn}
+                    onPress={() => navigation.navigate('Main')}
+                >
+                    <Text style={styles.backHomeText}>Về trang chủ</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    if (timeLeft <= 0) {
         return (
             <View
                 style={[
@@ -285,7 +366,7 @@ const PaymentScreen = () => {
                             </Text>
                             <Text style={styles.infoText}>Phòng chiếu: {screen.name}</Text>
                             <Text style={styles.infoText}>
-                                Ghế: {seats.map((s) => s.seat.seatNumber).join(', ')}
+                                Ghế: {seats.map((s) => s?.seat?.seatNumber || '(Trống)').join(', ')}
                             </Text>
                         </View>
                     </View>

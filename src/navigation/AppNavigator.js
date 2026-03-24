@@ -9,6 +9,8 @@ import MovieDetailScreen from '../screens/home/MovieDetailScreen';
 import SeatSelectionScreen from '../screens/booking/SeatSelectionScreen';
 import ServiceSelectionScreen from '../screens/booking/ServiceSelectionScreen';
 import PaymentScreen from '../screens/booking/PaymentScreen';
+import NewsDetailScreen from '../screens/news/NewsDetailScreen';
+import FestivalDetailScreen from '../screens/festival/FestivalDetailScreen';
 import { PaymentProvider } from '../contexts/PaymentContext';
 import * as Linking from 'expo-linking';
 
@@ -17,18 +19,18 @@ import { navigationRef } from './NavigationService';
 const Stack = createNativeStackNavigator();
 
 const linking = {
-    prefixes: [Linking.createURL('/')],
-    async getInitialURL() {
-        // Prevent React Navigation from handling initial URL
-        return null;
-    },
-    subscribe(listener) {
-        // Prevent React Navigation from reacting to URL changes while running
-        return () => {};
-    },
+    prefixes: ['filmgo://', Linking.createURL('/')],
     config: {
         screens: {
-            Main: '*', // map any unknown path
+            Payment: {
+                path: 'payment-result/:bookingId?',
+                parse: {
+                    bookingId: (value) => value,
+                    success: (value) => value,
+                    status: (value) => value,
+                    message: (value) => value,
+                },
+            },
         },
     },
 };
@@ -49,6 +51,8 @@ const AppNavigator = () => {
                     <Stack.Screen name="SeatSelection" component={SeatSelectionScreen} />
                     <Stack.Screen name="ServiceSelection" component={ServiceSelectionScreen} />
                     <Stack.Screen name="Payment" component={PaymentScreen} />
+                    <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
+                    <Stack.Screen name="FestivalDetail" component={FestivalDetailScreen} />
                     <Stack.Screen name="Auth" component={AuthNavigator} />
                 </Stack.Navigator>
             </PaymentProvider>

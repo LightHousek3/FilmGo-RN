@@ -27,6 +27,20 @@ const extractList = (response) => {
     return [];
 };
 
+// Haversine formula to calculate the distance between two points in km
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371; // km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+};
+
 const formatDistance = (distanceKm) => {
     if (distanceKm == null || Number.isNaN(distanceKm)) return null;
     if (distanceKm < 1) return `${Math.max(1, Math.round(distanceKm * 1000))}m`;
@@ -124,11 +138,22 @@ const TheaterScreen = ({ navigation }) => {
             const response = await theaterApi.getNearby({
                 lat: coords.latitude,
                 lng: coords.longitude,
-                limit: 20,
+                maxDistance: searchRadius * 1000,
+                limit: 50,
             });
 
             const mapped = extractList(response)
-                .map((item, index) => mapTheater(item, index))
+                .map((item, index) => {
+                    // Try to extract coordinates from the theater object
+                    const itemLat = item.coordinates?.coordinates?.[1] || item.location?.lat || item.lat;
+                    const itemLng = item.coordinates?.coordinates?.[0] || item.location?.lng || item.lng;
+                    const distKm = calculateDistance(coords.latitude, coords.longitude, itemLat, itemLng);
+                    
+                    if (distKm !== null && item.distanceKm == null) {
+                        item.distanceKm = distKm;
+                    }
+                    return mapTheater(item, index);
+                })
                 .filter((item) => item.distanceKm == null || item.distanceKm <= searchRadius)
                 .sort((a, b) => {
                     if (a.distanceKm == null && b.distanceKm == null) return 0;
@@ -169,7 +194,7 @@ const TheaterScreen = ({ navigation }) => {
     }, [fetchNearbyTheaters, readCurrentLocation]);
 
     const onSearch = useCallback(async () => {
-        const normalizedRadius = Math.max(1, Math.min(200, Number(radiusInput) || radius));
+        const normalizedRadius = Math.max(1, Math.min(500, Number(radiusInput) || radius));
         setRadius(normalizedRadius);
         setRadiusInput(String(normalizedRadius));
 

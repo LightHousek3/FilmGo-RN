@@ -42,6 +42,13 @@ export const PaymentProvider = ({ children }) => {
             return;
         }
 
+        // Only keep global pending payment for orders waiting for payment.
+        if (booking.status && booking.status !== 'PENDING') {
+            setPendingBooking(null);
+            setTimeLeft(0);
+            return;
+        }
+
         const createdAt = new Date(booking.createdAt).getTime();
         const now = new Date().getTime();
         const expiresAt = createdAt + 10 * 60 * 1000; // 10 mins

@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import MainTabNavigator from "./MainTabNavigator";
 import NewsScreen from "../screens/news/NewsScreen";
-import NewsDetailScreen from "../screens/news/NewsDetailScreen";
 import FestivalScreen from "../screens/festival/FestivalScreen";
 import ContactScreen from "../screens/contact/ContactScreen";
 import { useAuth } from "../hooks";
@@ -163,11 +162,6 @@ const DrawerNavigator = () => {
                 name="DrawerContact"
                 component={ContactScreen}
                 options={{ title: "Liên Hệ" }}
-            />
-            <Drawer.Screen
-                name="NewsDetail"
-                component={NewsDetailScreen}
-                options={{ drawerItemStyle: { height: 0 }, title: 'Tin Tức Chi Tiết' }}
             />
         </Drawer.Navigator>
     );
