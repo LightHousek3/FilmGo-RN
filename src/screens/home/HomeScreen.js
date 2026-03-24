@@ -489,7 +489,7 @@ const HomeScreen = ({ navigation }) => {
                 }
             >
                 {/* Banner Slider */}
-                <BannerSlider banners={banners} />
+                {/* <BannerSlider banners={banners} /> */}
 
                 {/* Now Showing Carousel – location button filters both lists */}
                 <MovieCarousel
