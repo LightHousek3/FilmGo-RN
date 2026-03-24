@@ -20,7 +20,7 @@ const NewsDetailScreen = () => {
             if (!id) return;
             try {
                 setLoading(true);
-                const res = await newsApi.getNewsDetail(id);
+                const res = await newsApi.getNewsById(id);
                 if (mounted) setNews(res.data.data);
             } catch (error) {
                 // ignore for now
@@ -65,9 +65,14 @@ const NewsDetailScreen = () => {
                         />
                         <View style={styles.metaRow}>
                             <Text style={styles.category}>{news.category}</Text>
-                            <Text style={styles.date}>{new Date(news.date).toLocaleDateString()}</Text>
+                            <Text style={styles.date}>
+                                {new Date(
+                                    news.publishDate || news.date || news.createdAt,
+                                ).toLocaleDateString()}
+                            </Text>
                         </View>
                         <Text style={styles.title}>{news.title}</Text>
+                        {!!news.subTitle && <Text style={styles.subTitle}>{news.subTitle}</Text>}
                         <Text style={styles.author}>{news.author}</Text>
                         <Text style={styles.contentText}>{news.content || news.description}</Text>
                     </ScrollView>
@@ -101,6 +106,13 @@ const styles = StyleSheet.create({
     category: { fontWeight: '700', color: COLORS.white },
     date: { color: COLORS.gray[500] },
     title: { fontSize: 20, fontWeight: '900', color: COLORS.white, marginTop: 6 },
+    subTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.gray[300],
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
     author: { color: COLORS.gray[400], marginVertical: 8 },
     contentText: { color: COLORS.gray[300], lineHeight: 22, marginTop: 6 },
 });

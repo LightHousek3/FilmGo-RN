@@ -169,7 +169,7 @@ const TheaterScreen = ({ navigation }) => {
     }, [fetchNearbyTheaters, readCurrentLocation]);
 
     const onSearch = useCallback(async () => {
-        const normalizedRadius = Math.max(1, Math.min(100, Number(radiusInput) || radius));
+        const normalizedRadius = Math.max(1, Math.min(200, Number(radiusInput) || radius));
         setRadius(normalizedRadius);
         setRadiusInput(String(normalizedRadius));
 

@@ -30,7 +30,7 @@ const PLACEHOLDER_BANNERS = [
 const BannerSlider = ({ banners = PLACEHOLDER_BANNERS, onBannerPress }) => {
     const flatListRef = useRef(null);
     const [currentIndex, setCurrentIndex] = useState(0);
-    console.log('banners', banners);
+
     const data = banners && banners.length > 0 ? banners : PLACEHOLDER_BANNERS;
     const dataLength = data.length;
 

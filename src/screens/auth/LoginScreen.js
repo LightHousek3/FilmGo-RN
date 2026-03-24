@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { bookingApi } from '../../api';
 import {
     View,
     Text,
@@ -54,6 +56,25 @@ const LoginScreen = ({ navigation }) => {
         setIsLoginLoading(false);
 
         if (result.success) {
+            try {
+                const data = await AsyncStorage.getItem('pendingBooking');
+                if (data) {
+                    const pendingData = JSON.parse(data);
+                    const { showtime, seats, services } = pendingData;
+                    const res = await bookingApi.createBooking({ showtime, seats, services });
+                    await AsyncStorage.removeItem('pendingBooking');
+
+                    if (res.data && res.data.success) {
+                        navigation.navigate('Payment', {
+                            bookingId: res.data.data._id || res.data.data.id,
+                            bookingData: res.data.data,
+                        });
+                        return;
+                    }
+                }
+            } catch (err) {
+                await AsyncStorage.removeItem('pendingBooking');
+            }
             navigation.navigate('Main');
         } else {
             setError(result.message || 'Đăng nhập thất bại.');

@@ -2,6 +2,7 @@
   "expo": {
     "name": "FilmGo-RN",
     "slug": "FilmGo-RN",
+    "scheme": "filmgo",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",

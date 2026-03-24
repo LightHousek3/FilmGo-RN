@@ -331,6 +331,7 @@ const TheaterShowtimesScreen = ({ navigation, route }) => {
                                         <TouchableOpacity
                                             key={showtime.id}
                                             activeOpacity={0.8}
+                                            onPress={() => navigation.navigate("SeatSelection", { showtimeId: showtime.id })}
                                             className="rounded-xl border border-[#D7DCE5] px-7 py-3"
                                             style={{ minWidth: 108 }}
                                         >
