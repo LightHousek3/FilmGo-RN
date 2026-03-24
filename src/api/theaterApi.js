@@ -3,7 +3,7 @@ import axiosInstance from "./axiosInstance";
 const theaterApi = {
     /**
      * Get theaters list
-     * @param {{ page, limit }} params
+     * @param {{ page, limit, lat, lng }} params
      */
     getTheaters: (params = {}) => {
         return axiosInstance.get("/theaters", { params });
@@ -26,10 +26,10 @@ const theaterApi = {
 
     /**
      * Get nearby theaters
-     * @param {{ longitude, latitude, maxDistance }} params
+     * @param {{ lat: number, lng: number, page?: number, limit?: number }} params
      */
-    getNearby: (params) => {
-        return axiosInstance.get("/theaters/nearby", { params });
+    getNearby: (params = {}) => {
+        return axiosInstance.get("/theaters", { params });
     },
 };
 
