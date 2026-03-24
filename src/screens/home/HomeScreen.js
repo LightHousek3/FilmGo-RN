@@ -356,7 +356,7 @@ const HomeScreen = ({ navigation }) => {
     const [location, setLocation] = useState(null);
     const [locationModalVisible, setLocationModalVisible] = useState(false);
 
-    const fetchData = useCallback(async (loc = null, includeStatic = true) => {
+    const fetchData = useCallback(async (loc = null) => {
         try {
             const movieParams = { limit: 6, ...(loc ? { location: loc } : {}) };
 
@@ -364,12 +364,10 @@ const HomeScreen = ({ navigation }) => {
                 await Promise.allSettled([
                     movieApi.getNowShowing(movieParams),
                     movieApi.getComingSoon(movieParams),
-                    includeStatic
-                        ? promotionApi.getPromotions({ status: 'ACTIVE', limit: 5 })
-                        : Promise.resolve(null),
-                    includeStatic ? bannerApi.getBanners({ limit: 5 }) : Promise.resolve(null),
-                    includeStatic ? theaterApi.getLocations() : Promise.resolve(null),
-                    includeStatic ? newsApi.getNews({ limit: 5 }) : Promise.resolve(null),
+                    promotionApi.getPromotions({ status: 'ACTIVE', limit: 5 }),
+                    bannerApi.getBanners({ limit: 5 }),
+                    theaterApi.getLocations(),
+                    newsApi.getNews({ limit: 5 }),
                 ]);
 
             setNowShowing(
@@ -388,51 +386,47 @@ const HomeScreen = ({ navigation }) => {
                     : MOCK_COMING_SOON,
             );
 
-            if (includeStatic) {
-                setPromotions(
-                    promotionsRes.status === 'fulfilled' &&
-                        Array.isArray(promotionsRes.value?.data?.data) &&
-                        promotionsRes.value.data.data.length
-                        ? promotionsRes.value.data.data
-                        : MOCK_PROMOTIONS,
-                );
+            setPromotions(
+                promotionsRes.status === 'fulfilled' &&
+                    Array.isArray(promotionsRes.value?.data?.data) &&
+                    promotionsRes.value.data.data.length
+                    ? promotionsRes.value.data.data
+                    : MOCK_PROMOTIONS,
+            );
 
-                setBanners(
-                    bannersRes.status === 'fulfilled' &&
-                        Array.isArray(bannersRes.value?.data?.data) &&
-                        bannersRes.value.data.data.length
-                        ? bannersRes.value.data.data
-                        : [],
-                );
+            setBanners(
+                bannersRes.status === 'fulfilled' &&
+                    Array.isArray(bannersRes.value?.data?.data) &&
+                    bannersRes.value.data.data.length
+                    ? bannersRes.value.data.data
+                    : [],
+            );
 
-                if (
-                    locationsRes.status === 'fulfilled' &&
-                    Array.isArray(locationsRes.value?.data?.data) &&
-                    locationsRes.value.data.data.length
-                ) {
-                    // Ensure "Tất cả" is first
-                    const fetchedLocs = locationsRes.value.data.data;
-                    const finalLocs = fetchedLocs.includes('Tất cả')
-                        ? fetchedLocs
-                        : ['Tất cả', ...fetchedLocs];
-                    setLocations(finalLocs);
-                }
-
-                setNews(
-                    newsRes.status === 'fulfilled' &&
-                        Array.isArray(newsRes.value?.data?.data) &&
-                        newsRes.value.data.data.length
-                        ? newsRes.value.data.data
-                        : MOCK_NEWS,
-                );
+            if (
+                locationsRes.status === 'fulfilled' &&
+                Array.isArray(locationsRes.value?.data?.data) &&
+                locationsRes.value.data.data.length
+            ) {
+                // Ensure "Tất cả" is first
+                const fetchedLocs = locationsRes.value.data.data;
+                const finalLocs = fetchedLocs.includes('Tất cả')
+                    ? fetchedLocs
+                    : ['Tất cả', ...fetchedLocs];
+                setLocations(finalLocs);
             }
+
+            setNews(
+                newsRes.status === 'fulfilled' &&
+                    Array.isArray(newsRes.value?.data?.data) &&
+                    newsRes.value.data.data.length
+                    ? newsRes.value.data.data
+                    : MOCK_NEWS,
+            );
         } catch {
             setNowShowing(MOCK_NOW_SHOWING);
             setComingSoon(MOCK_COMING_SOON);
-            if (includeStatic) {
-                setPromotions(MOCK_PROMOTIONS);
-                setNews(MOCK_NEWS);
-            }
+            setPromotions(MOCK_PROMOTIONS);
+            setNews(MOCK_NEWS);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -446,19 +440,22 @@ const HomeScreen = ({ navigation }) => {
     // Refetch when location filter changes (applies to both lists)
     useEffect(() => {
         if (!loading) {
-            fetchData(location, false);
+            fetchData(location);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        fetchData(location, true);
+        fetchData(location);
     }, [fetchData, location]);
 
-    const handleMoviePress = useCallback((movie) => {
-        navigation.navigate("MovieDetail", { movie });
-    }, [navigation]);
+    const handleMoviePress = useCallback(
+        (movie) => {
+            navigation.navigate('MovieDetail', { movie });
+        },
+        [navigation],
+    );
 
     // Single location button shared by both carousels
     const locationBtn = useMemo(

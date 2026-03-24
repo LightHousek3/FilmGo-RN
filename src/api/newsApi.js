@@ -1,4 +1,4 @@
-import axiosInstance from "./axiosInstance";
+import axiosInstance from './axiosInstance';
 
 const newsApi = {
     /**
@@ -6,16 +6,16 @@ const newsApi = {
      * @param {{ page, limit, type }} params
      */
     getNews: (params = {}) => {
-        return axiosInstance.get("/news", { params });
+        return axiosInstance.get('/news', { params });
     },
-    
+
     /**
      * Get news detail by ID
-     * @param {string} id 
+     * @param {string} id
      */
     getNewsById: (id) => {
         return axiosInstance.get(`/news/${id}`);
-    }
+    },
 };
 
 export default newsApi;

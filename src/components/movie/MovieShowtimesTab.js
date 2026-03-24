@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import COLORS from '../../constants/colors';
 import { showtimeApi } from '../../api';
 
@@ -29,6 +30,7 @@ const getNext7Days = () => {
 const DATES = getNext7Days();
 
 const MovieShowtimesTab = ({ movie }) => {
+    const navigation = useNavigation();
     const [selectedDate, setSelectedDate] = useState(DATES[0].fullDate);
     const [theaterGroups, setTheaterGroups] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -65,13 +67,13 @@ const MovieShowtimesTab = ({ movie }) => {
                     });
                 }
 
-                // Format to local time natively, aligning perfectly with Backend bounds (UTC+7 shift)
-                const dateObj = new Date(st.startTime);
-                const h = String(dateObj.getHours()).padStart(2, '0');
-                const m = String(dateObj.getMinutes()).padStart(2, '0');
-                const timeString = `${h}:${m}`;
-                
                 const tId = theater.id || theater._id;
+                
+                // Format natively matching strict UTC string using regex to extract correct HH:mm
+                const timeStrMatch = st.startTime.match(/T(\d{2}:\d{2})/);
+                const timeString = timeStrMatch ? timeStrMatch[1] : "00:00";
+                const dateObj = new Date(st.startTime);
+
                 theaterMap.get(tId).showtimes.push({
                     id: st.id || st._id,
                     time: timeString,
@@ -127,6 +129,9 @@ const MovieShowtimesTab = ({ movie }) => {
                             style={[styles.timeButton, isEnded && styles.timeButtonEnded]} 
                             disabled={isEnded}
                             activeOpacity={0.7}
+                            onPress={() => navigation.navigate("SeatSelection", { 
+                                showtimeId: st.id 
+                            })}
                         >
                             <Text style={[styles.timeText, isEnded && styles.timeTextEnded]}>{st.time}</Text>
                         </TouchableOpacity>

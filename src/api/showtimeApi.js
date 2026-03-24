@@ -16,6 +16,14 @@ const showtimeApi = {
     getShowtimeById: (id) => {
         return axiosInstance.get(`/showtimes/${id}`);
     },
+
+    /**
+     * Get seating for a showtime
+     * @param {string} id
+     */
+    getShowtimeSeating: (id) => {
+        return axiosInstance.get(`/showtimes/${id}/seating`);
+    },
 };
 
 export default showtimeApi;
