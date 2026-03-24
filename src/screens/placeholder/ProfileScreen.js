@@ -1,13 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth, useBookingDetail } from '../../hooks';
-import COLORS from '../../constants/colors';
-import ProfileInfoSection from '../../components/profile/ProfileInfoSection';
-import TicketHistorySection from '../../components/profile/TicketHistorySection';
-import BookingDetailOverlay from '../../components/profile/BookingDetailOverlay';
+import React, { useMemo, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth, useBookingDetail } from "../../hooks";
+import COLORS from "../../constants/colors";
+import ProfileInfoSection from "../../components/profile/ProfileInfoSection";
+import TicketHistorySection from "../../components/profile/TicketHistorySection";
+import BookingDetailOverlay from "../../components/profile/BookingDetailOverlay";
 
 const TABS = {
     INFO: 'info',
@@ -39,7 +39,6 @@ const formatBirthday = (dateString) => {
 };
 
 const ProfileScreen = ({ navigation }) => {
-
     const nav = navigation || useNavigation();
     const { user, logout, isLoading, isAuthenticated } = useAuth();
     const { selectedBooking, openBookingDetail, closeBookingDetail } = useBookingDetail();
@@ -49,7 +48,6 @@ const ProfileScreen = ({ navigation }) => {
         if (!user) return 'Khách';
         return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Khách';
     }, [user]);
-
 
     const memberSince = formatJoinDate(user?.createdAt);
 
@@ -75,6 +73,11 @@ const ProfileScreen = ({ navigation }) => {
             return;
         }
         nav.navigate('Auth', { screen: 'Login' });
+    };
+
+    // Điều hướng đến màn hình UpdateProfile khi nhấn "Chỉnh sửa"
+    const onEdit = () => {
+        nav.navigate("UpdateProfile"); // Điều hướng đến màn hình UpdateProfileScreen
     };
 
     return (
@@ -158,7 +161,7 @@ const ProfileScreen = ({ navigation }) => {
                             fullName={fullName}
                             user={user}
                             birthdayText={formatBirthday(user?.birthDate)}
-                            onEdit={() => onPressPlaceholderAction('Chỉnh sửa')}
+                            onEdit={onEdit} // Truyền hàm onEdit vào
                         />
                     ) : (
                         <TicketHistorySection onSelectBooking={openBookingDetail} />
@@ -244,7 +247,7 @@ const ProfileScreen = ({ navigation }) => {
                 onClose={closeBookingDetail}
             />
         </SafeAreaView>
-    ); 
+    );
 };
 
 export default ProfileScreen;

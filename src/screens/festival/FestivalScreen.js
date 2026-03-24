@@ -99,11 +99,9 @@ const FestivalScreen = () => {
     try {
       setLoading(true);
       const response = await festivalApi.getFestivals();
-      console.log("festival response:", response?.data);
-      setFestivals(Array.isArray(response?.data?.data) ? response.data.data : []);
+      setFestivals(response?.data?.data || []);
     } catch (error) {
-      console.log("Fetch festivals error:", error?.response?.data || error.message);
-      setFestivals([]);
+      console.error("Error fetching festivals:", error);
     } finally {
       setLoading(false);
     }
@@ -115,10 +113,15 @@ const FestivalScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+      {/* Nút quay lại trang trước */}
+      <TouchableOpacity
+        onPress={() => navigation.goBack()} // Quay lại trang trước
+        style={styles.backBtn}
       >
+        <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+      </TouchableOpacity>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.pageTitle}>Sự kiện</Text>
         <Text style={styles.pageSubtitle}>Các sự kiện điện ảnh nổi bật</Text>
 
@@ -154,15 +157,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
+  backBtn: {
+    position: "absolute",
+    top: 30,
+    left: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1, // Đảm bảo nút này không bị che khuất
+  },
   scrollContent: {
     padding: 16,
+    paddingTop: 80, // Tăng khoảng cách ở trên để không bị đè
     paddingBottom: 32,
   },
   pageTitle: {
     fontSize: 28,
     fontWeight: "800",
     color: "#fff",
-    marginBottom: 4,
+    marginBottom: 10, // Điều chỉnh khoảng cách để tiêu đề không bị dính vào đầu
   },
   pageSubtitle: {
     fontSize: 15,
