@@ -116,7 +116,7 @@ const ChangePasswordScreen = ({ navigation }) => {
                         loading={submitting}
                         disabled={submitting}
                         size="lg"
-                        extraClass="mt-2"
+                        className="mt-2"
                     />
                 </ScrollView>
             </KeyboardAvoidingView>

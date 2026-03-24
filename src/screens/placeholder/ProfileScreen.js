@@ -16,6 +16,7 @@ const TABS = {
 
 const MENU_ITEMS = [
     { id: 'settings', label: 'Cài đặt', icon: 'settings-outline' },
+    { id: 'change-password', label: 'Đổi mật khẩu', icon: 'key-outline' },
     { id: 'help', label: 'Trợ giúp & Hỗ trợ', icon: 'help-circle-outline' },
 ];
 
@@ -53,6 +54,19 @@ const ProfileScreen = ({ navigation }) => {
 
     const onPressPlaceholderAction = (label) => {
         Alert.alert('Thông báo', `Tính năng \"${label}\" sẽ sớm ra mắt.`);
+    };
+
+    const onPressMenuItem = (item) => {
+        if (item.id === 'change-password') {
+            if (!isAuthenticated) {
+                onPressLogin();
+                return;
+            }
+            nav.navigate('ChangePassword');
+            return;
+        }
+
+        onPressPlaceholderAction(item.label);
     };
 
     const onPressLogout = () => {
@@ -155,8 +169,14 @@ const ProfileScreen = ({ navigation }) => {
                         <ProfileInfoSection
                             fullName={fullName}
                             user={user}
-                            birthdayText={formatBirthday(user?.birthDate)}
-                            onEdit={() => onPressPlaceholderAction('Chỉnh sửa')}
+                            birthdayText={formatBirthday(user?.dateOfBirth)}
+                            onEdit={() => {
+                                if (!isAuthenticated) {
+                                    onPressLogin();
+                                    return;
+                                }
+                                nav.navigate('EditProfile');
+                            }}
                         />
                     ) : (
                         <TicketHistorySection onSelectBooking={openBookingDetail} />
@@ -173,7 +193,7 @@ const ProfileScreen = ({ navigation }) => {
                             <TouchableOpacity
                                 key={item.id}
                                 className="flex-row items-center justify-between border-b border-white/10 px-4 py-4"
-                                onPress={() => onPressPlaceholderAction(item.label)}
+                                onPress={() => onPressMenuItem(item)}
                             >
                                 <View className="flex-row items-center">
                                     <Ionicons name={item.icon} size={20} color={COLORS.gray[400]} />
