@@ -25,9 +25,9 @@ const MENU_ITEMS = [
 ];
 
 const formatJoinDate = (dateString) => {
-  if (!dateString) return "01/2024";
+  if (!dateString) return "--/----";
   const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return "01/2024";
+  if (Number.isNaN(date.getTime())) return "--/----";
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   return `${month}/${year}`;
@@ -43,19 +43,19 @@ const formatBirthday = (dateString) => {
   return `${day}/${month}/${year}`;
 };
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ navigation }) => {
   const { user, logout, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState(TABS.INFO);
 
   const fullName = useMemo(() => {
     if (!user) return "Khách";
-    return [user.firstName, user.lastName].filter(Boolean).join(" ") || "Khách";
+    return [user.lastName, user.firstName].filter(Boolean).join(" ") || "Khách";
   }, [user]);
 
   const memberSince = formatJoinDate(user?.createdAt);
 
   const onPressPlaceholderAction = (label) => {
-    Alert.alert("Thông báo", `Tính năng \"${label}\" sẽ sớm ra mắt.`);
+    Alert.alert("Thông báo", `Tính năng "${label}" sẽ sớm ra mắt.`);
   };
 
   const onPressLogout = () => {
@@ -64,7 +64,17 @@ const ProfileScreen = () => {
       {
         text: "Đăng xuất",
         style: "destructive",
-        onPress: logout,
+        onPress: async () => {
+          await logout();
+
+          const parentNav = nav.getParent?.();
+          if (parentNav) {
+            parentNav.navigate('Auth', { screen: 'Login' });
+            return;
+          }
+
+          nav.navigate('Auth', { screen: 'Login' });
+        },
       },
     ]);
   };
@@ -76,7 +86,7 @@ const ProfileScreen = () => {
         contentContainerStyle={{ paddingBottom: 28 }}
       >
         <View className="px-4 pt-2">
-          <View className="flex-row items-center mt-4">
+          <View className="mt-4 flex-row items-center">
             <View
               className="h-20 w-20 items-center justify-center overflow-hidden rounded-full border"
               style={{ borderColor: COLORS.secondary, borderWidth: 2 }}
@@ -93,6 +103,7 @@ const ProfileScreen = () => {
                 </View>
               )}
             </View>
+
             <View className="ml-4 flex-1">
               <Text
                 className="text-[24px] font-bold text-white"
@@ -100,6 +111,15 @@ const ProfileScreen = () => {
               >
                 {fullName}
               </Text>
+
+              {!!user?.email && (
+                <Text
+                  className="mt-1 text-[14px] text-gray-400"
+                  numberOfLines={1}
+                >
+                  {user.email}
+                </Text>
+              )}
 
               <Text className="mt-1 text-[16px] text-gray-400">
                 Thành viên từ {memberSince}
@@ -155,8 +175,8 @@ const ProfileScreen = () => {
             <ProfileInfoSection
               fullName={fullName}
               user={user}
-              birthdayText={formatBirthday(user?.birthDate)}
-              onEdit={() => onPressPlaceholderAction("Chỉnh sửa")}
+              birthdayText={formatBirthday(user?.dateOfBirth)}
+              onEdit={() => navigation.navigate("UpdateProfile")}
             />
           ) : (
             <TicketHistorySection />

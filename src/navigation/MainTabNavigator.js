@@ -7,7 +7,7 @@ import HomeScreen from "../screens/home/HomeScreen";
 import TheaterScreen from "../screens/placeholder/TheaterScreen";
 import PriceScreen from "../screens/placeholder/PriceScreen";
 import PromotionScreen from "../screens/placeholder/PromotionScreen";
-import ProfileScreen from "../screens/placeholder/ProfileScreen";
+import ProfileNavigator from "./ProfileNavigator";
 import COLORS from "../constants/colors";
 import STRINGS from "../constants/strings";
 
@@ -38,14 +38,14 @@ const MainTabNavigator = () => {
           paddingTop: 8,
           ...(Platform.OS === "android"
             ? {
-                elevation: 12,
-              }
+              elevation: 12,
+            }
             : {
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: -4 },
-                shadowOpacity: 0.08,
-                shadowRadius: 8,
-              }),
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.08,
+              shadowRadius: 8,
+            }),
         },
         tabBarItemStyle: {
           paddingVertical: 2,
@@ -85,7 +85,7 @@ const MainTabNavigator = () => {
       />
       <Tab.Screen
         name="ProfileTab"
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{ tabBarLabel: STRINGS.tabProfile }}
       />
     </Tab.Navigator>

@@ -16,12 +16,10 @@ const Config = Object.freeze({
   }),
 
   // ─── API ────────────────────────────────────────────
-  api: Object.freeze({
-    baseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
-    timeout: process.env.EXPO_PUBLIC_API_TIMEOUT
-      ? parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT, 10)
-      : 15000,
-  }),
+    api: Object.freeze({
+        baseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+        timeout: process.env.EXPO_PUBLIC_API_TIMEOUT ? parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT, 10) : 15000,
+    }),
 
   // ─── Auth ────────────────────────────────────────────
   auth: Object.freeze({

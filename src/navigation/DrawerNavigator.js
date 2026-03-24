@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import MainTabNavigator from "./MainTabNavigator";
 import NewsScreen from "../screens/news/NewsScreen";
-import FestivalScreen from "../screens/festival/FestivalScreen";
+import FestivalStackNavigator from "./FestivalStackNavigator";
 import ContactScreen from "../screens/contact/ContactScreen";
 import { useAuth } from "../hooks";
 import COLORS from "../constants/colors";
@@ -32,7 +32,7 @@ const DRAWER_ITEMS = [
     },
     {
         name: "DrawerFestival",
-        label: "Lễ Hội Điện Ảnh",
+        label: "Sự kiện",
         icon: "calendar-outline",
         focusedIcon: "calendar",
         color: "#F5C518",
@@ -155,8 +155,8 @@ const DrawerNavigator = () => {
             />
             <Drawer.Screen
                 name="DrawerFestival"
-                component={FestivalScreen}
-                options={{ title: "Lễ Hội Điện Ảnh" }}
+                component={FestivalStackNavigator}
+                options={{ title: "Sự kiện" }}
             />
             <Drawer.Screen
                 name="DrawerContact"

@@ -68,6 +68,8 @@ export const AuthContext = createContext({
   resetPassword: async () => {},
   verifyEmail: async () => {},
   resendVerification: async () => {},
+  updateProfile: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const AuthProvider = ({ children }) => {
@@ -120,12 +122,12 @@ export const AuthProvider = ({ children }) => {
           success: false,
           message: getErrorMessage(
             error,
-            "Đăng nhập thất bại. Vui lòng thử lại.",
+            "Đăng nhập thất bại. Vui lòng thử lại."
           ),
         };
       }
     },
-    [getErrorMessage],
+    [getErrorMessage]
   );
 
   const register = useCallback(
@@ -138,12 +140,12 @@ export const AuthProvider = ({ children }) => {
           success: false,
           message: getErrorMessage(
             error,
-            "Đăng ký thất bại. Vui lòng thử lại.",
+            "Đăng ký thất bại. Vui lòng thử lại."
           ),
         };
       }
     },
-    [getErrorMessage],
+    [getErrorMessage]
   );
 
   const logout = useCallback(async () => {
@@ -153,7 +155,7 @@ export const AuthProvider = ({ children }) => {
         await authApi.logout({ refreshToken });
       }
     } catch {
-      // Force local sign-out even if logout request fails.
+      // ignore
     } finally {
       await storageService.clearAll();
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -170,12 +172,12 @@ export const AuthProvider = ({ children }) => {
           success: false,
           message: getErrorMessage(
             error,
-            "Gửi email thất bại. Vui lòng thử lại.",
+            "Gửi email thất bại. Vui lòng thử lại."
           ),
         };
       }
     },
-    [getErrorMessage],
+    [getErrorMessage]
   );
 
   const resetPassword = useCallback(
@@ -188,38 +190,35 @@ export const AuthProvider = ({ children }) => {
           success: false,
           message: getErrorMessage(
             error,
-            "Đặt lại mật khẩu thất bại. Vui lòng thử lại.",
+            "Đặt lại mật khẩu thất bại. Vui lòng thử lại."
           ),
         };
       }
     },
-    [getErrorMessage],
+    [getErrorMessage]
   );
 
   const verifyEmail = useCallback(
     async ({ email, code, password }) => {
       try {
-        const verifyResponse = await authApi.verifyEmail({ email, code });
+        await authApi.verifyEmail({ email, code });
 
         if (email && password) {
-          const loginResponse = await login(email, password);
-          if (!loginResponse.success) {
-            return loginResponse;
-          }
+          return await login(email, password);
         }
 
-        return { success: true, authenticated: false };
+        return { success: true };
       } catch (error) {
         return {
           success: false,
           message: getErrorMessage(
             error,
-            "Xác minh email thất bại. Vui lòng thử lại.",
+            "Xác minh email thất bại. Vui lòng thử lại."
           ),
         };
       }
     },
-    [getErrorMessage],
+    [getErrorMessage, login]
   );
 
   const resendVerification = useCallback(
@@ -232,13 +231,63 @@ export const AuthProvider = ({ children }) => {
           success: false,
           message: getErrorMessage(
             error,
-            "Gửi lại email thất bại. Vui lòng thử lại.",
+            "Gửi lại email thất bại. Vui lòng thử lại."
           ),
         };
       }
     },
-    [getErrorMessage],
+    [getErrorMessage]
   );
+
+  // ✅ FIX 1: refreshProfile đúng
+  const refreshProfile = async () => {
+    try {
+      const response = await authApi.getProfile();
+      const profileData = response?.data?.data || response?.data;
+
+      await storageService.setUser(profileData);
+
+      dispatch({
+        type: AUTH_ACTIONS.UPDATE_USER,
+        payload: profileData,
+      });
+
+      return { success: true, data: profileData };
+    } catch (error) {
+      return {
+        success: false,
+        message:
+          error?.response?.data?.message || "Không thể tải hồ sơ",
+      };
+    }
+  };
+
+  // ✅ FIX 2: updateProfile đúng
+  const updateProfile = async (payload) => {
+    console.log("UpdateProfile payload:", payload);
+    try {
+      const response = await authApi.updateProfile(payload);
+      console.log("UpdateProfile response:", response);
+      const updatedUser = response?.data?.data || response?.data;
+
+      await storageService.setUser(updatedUser);
+
+      dispatch({
+        type: AUTH_ACTIONS.UPDATE_USER,
+        payload: updatedUser,
+      });
+
+      return { success: true, data: updatedUser };
+    } catch (error) {
+      console.error("UpdateProfile error:", error);
+      console.error("UpdateProfile error response:", error?.response);
+      return {
+        success: false,
+        message:
+          error?.response?.data?.message || "Cập nhật thất bại",
+      };
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -251,6 +300,8 @@ export const AuthProvider = ({ children }) => {
         resetPassword,
         verifyEmail,
         resendVerification,
+        updateProfile,
+        refreshProfile,
         updateUser: (user) =>
           dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: user }),
       }}

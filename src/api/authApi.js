@@ -69,7 +69,11 @@ const authApi = {
      * Get current user profile
      */
     getProfile: () => {
-        return axiosInstance.get("/auth/profile");
+        return axiosInstance.get("/profiles");
+    },
+
+    updateProfile: (data) => {
+        return axiosInstance.put("/profiles/edit", data);
     },
 };
 

@@ -7,3 +7,4 @@ export { default as showtimeApi } from "./showtimeApi";
 export { default as bannerApi } from "./bannerApi";
 export { default as newsApi } from "./newsApi";
 export { default as ticketPriceApi } from "./ticketPriceApi";
+export { default as festivalApi } from "./festivalApi";
