@@ -6,49 +6,48 @@
  * *
  */
 
-import Constants from "expo-constants";
-import { Platform } from "react-native";
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // ─── Build Config ─────────────────────────────────────
 
-const DEFAULT_API_BASE_URL = "http://localhost:3000/api/v1";
+const DEFAULT_API_BASE_URL = 'http://localhost:3000/api/v1';
 
 const extractHost = (hostValue) => {
-  if (!hostValue || typeof hostValue !== "string") return null;
-  const [host] = hostValue.split(":");
-  return host || null;
+    if (!hostValue || typeof hostValue !== 'string') return null;
+    const [host] = hostValue.split(':');
+    return host || null;
 };
 
 const resolveDevHost = () => {
-  const hostCandidates = [
-    Constants.expoConfig?.hostUri,
-    Constants.manifest?.debuggerHost,
-    Constants.manifest2?.extra?.expoGo?.debuggerHost,
-    Constants.expoGoConfig?.debuggerHost,
-  ];
+    const hostCandidates = [
+        Constants.expoConfig?.hostUri,
+        Constants.manifest?.debuggerHost,
+        Constants.manifest2?.extra?.expoGo?.debuggerHost,
+        Constants.expoGoConfig?.debuggerHost,
+    ];
 
-  for (const candidate of hostCandidates) {
-    const host = extractHost(candidate);
-    if (host) return host;
-  }
+    for (const candidate of hostCandidates) {
+        const host = extractHost(candidate);
+        if (host) return host;
+    }
 
-  return null;
+    return null;
 };
 
 const resolveApiBaseUrl = () => {
-  const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-  if (envBaseUrl) return envBaseUrl;
+    if (envBaseUrl) return envBaseUrl;
 
-  const devHost = resolveDevHost();
-  if (devHost) {
-    return `http://${devHost}:3000/api/v1`;
-  }
+    const devHost = resolveDevHost();
+    if (devHost) {
+        return `http://${devHost}:3000/api/v1`;
+    }
 
-  if (__DEV__ && Platform.OS === "android") {
-    return "http://10.0.2.2:3000/api/v1";
-  }
+    if (__DEV__ && Platform.OS === 'android') {
+        return 'http://10.0.2.2:3000/api/v1';
+    }
 
-  return DEFAULT_API_BASE_URL;
+    return DEFAULT_API_BASE_URL;
 };
 
 const Config = Object.freeze({

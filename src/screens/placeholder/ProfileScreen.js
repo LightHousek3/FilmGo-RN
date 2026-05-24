@@ -21,9 +21,9 @@ const MENU_ITEMS = [
 ];
 
 const formatJoinDate = (dateString) => {
-    if (!dateString) return '01/2024';
+    if (!dateString) return '__/__';
     const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return '01/2024';
+    if (Number.isNaN(date.getTime())) return '__/__';
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${month}/${year}`;
@@ -50,13 +50,24 @@ const ProfileScreen = ({ navigation }) => {
         return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Khách';
     }, [user]);
 
-    const memberSince = formatJoinDate(user?.createdAt);
+    const memberSince = isAuthenticated ? formatJoinDate(user?.createdAt) : '__/__';
 
     const onPressPlaceholderAction = (label) => {
         Alert.alert('Thông báo', `Tính năng \"${label}\" sẽ sớm ra mắt.`);
     };
 
     const onPressMenuItem = (item) => {
+        if (item.id === 'help') {
+            const drawerNav = nav.getParent?.()?.getParent?.();
+            if (drawerNav?.navigate) {
+                drawerNav.navigate('DrawerContact');
+                return;
+            }
+
+            nav.navigate('DrawerContact');
+            return;
+        }
+
         if (item.id === 'change-password') {
             if (!isAuthenticated) {
                 onPressLogin();
@@ -182,77 +193,87 @@ const ProfileScreen = ({ navigation }) => {
                         <TicketHistorySection onSelectBooking={openBookingDetail} />
                     )}
 
-                    <View
-                        className="mt-5 overflow-hidden rounded-2xl border"
-                        style={{
-                            borderColor: 'rgba(255,255,255,0.12)',
-                            backgroundColor: '#090A0E',
-                        }}
-                    >
-                        {MENU_ITEMS.map((item) => (
-                            <TouchableOpacity
-                                key={item.id}
-                                className="flex-row items-center justify-between border-b border-white/10 px-4 py-4"
-                                onPress={() => onPressMenuItem(item)}
-                            >
-                                <View className="flex-row items-center">
-                                    <Ionicons name={item.icon} size={20} color={COLORS.gray[400]} />
-                                    <Text className="ml-3 text-xl font-semibold text-white">
-                                        {item.label}
-                                    </Text>
-                                </View>
-                                <Ionicons
-                                    name="chevron-forward"
-                                    size={20}
-                                    color={COLORS.gray[600]}
-                                />
-                            </TouchableOpacity>
-                        ))}
-
-                        {isAuthenticated ? (
-                            <TouchableOpacity
-                                className="flex-row items-center justify-between px-4 py-4"
-                                disabled={isLoading}
-                                onPress={onPressLogout}
-                            >
-                                <View className="flex-row items-center">
-                                    <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-                                    <Text className="ml-3 text-xl font-semibold text-[#FF3B30]">
-                                        Đăng xuất
-                                    </Text>
-                                </View>
-                                <Ionicons
-                                    name="chevron-forward"
-                                    size={20}
-                                    color={COLORS.gray[600]}
-                                />
-                            </TouchableOpacity>
-                        ) : (
-                            <TouchableOpacity
-                                className="flex-row items-center justify-between px-4 py-4"
-                                onPress={onPressLogin}
-                            >
-                                <View className="flex-row items-center">
+                    {activeTab !== TABS.HISTORY && (
+                        <View
+                            className="mt-5 overflow-hidden rounded-2xl border"
+                            style={{
+                                borderColor: 'rgba(255,255,255,0.12)',
+                                backgroundColor: '#090A0E',
+                            }}
+                        >
+                            {MENU_ITEMS.map((item) => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    className="flex-row items-center justify-between border-b border-white/10 px-4 py-4"
+                                    onPress={() => onPressMenuItem(item)}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Ionicons
+                                            name={item.icon}
+                                            size={20}
+                                            color={COLORS.gray[400]}
+                                        />
+                                        <Text className="ml-3 text-xl font-semibold text-white">
+                                            {item.label}
+                                        </Text>
+                                    </View>
                                     <Ionicons
-                                        name="log-in-outline"
+                                        name="chevron-forward"
                                         size={20}
-                                        color={COLORS.secondary}
+                                        color={COLORS.gray[600]}
                                     />
-                                    <Text
-                                        className="ml-3 text-xl font-semibold"
-                                        style={{ color: COLORS.secondary }}
-                                    >
-                                        Đăng nhập
-                                    </Text>
-                                </View>
-                                <Ionicons
-                                    name="chevron-forward"
-                                    size={20}
-                                    color={COLORS.gray[600]}
-                                />
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                                </TouchableOpacity>
+                            ))}
+
+                            {isAuthenticated ? (
+                                <TouchableOpacity
+                                    className="flex-row items-center justify-between px-4 py-4"
+                                    disabled={isLoading}
+                                    onPress={onPressLogout}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Ionicons
+                                            name="log-out-outline"
+                                            size={20}
+                                            color="#FF3B30"
+                                        />
+                                        <Text className="ml-3 text-xl font-semibold text-[#FF3B30]">
+                                            Đăng xuất
+                                        </Text>
+                                    </View>
+                                    <Ionicons
+                                        name="chevron-forward"
+                                        size={20}
+                                        color={COLORS.gray[600]}
+                                    />
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    className="flex-row items-center justify-between px-4 py-4"
+                                    onPress={onPressLogin}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Ionicons
+                                            name="log-in-outline"
+                                            size={20}
+                                            color={COLORS.secondary}
+                                        />
+                                        <Text
+                                            className="ml-3 text-xl font-semibold"
+                                            style={{ color: COLORS.secondary }}
+                                        >
+                                            Đăng nhập
+                                        </Text>
+                                    </View>
+                                    <Ionicons
+                                        name="chevron-forward"
+                                        size={20}
+                                        color={COLORS.gray[600]}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    )}
                 </View>
             </ScrollView>
 

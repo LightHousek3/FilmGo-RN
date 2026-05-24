@@ -36,6 +36,23 @@ const formatDateTime = (dateString) => {
     return `${time} - ${day}`;
 };
 
+const getMovieImageUri = (movie) => {
+    if (!movie) return '';
+
+    if (typeof movie.image === 'string') return movie.image;
+    if (movie.image?.url) return movie.image.url;
+    if (typeof movie.imageUrl === 'string') return movie.imageUrl;
+    if (typeof movie.posterUrl === 'string') return movie.posterUrl;
+
+    return '';
+};
+
+const hasPopulatedMovie = (bookingPayload) => {
+    const movie = bookingPayload?.showtime?.movie;
+    if (!movie || typeof movie === 'string') return false;
+    return Boolean(movie.title || movie.type || getMovieImageUri(movie));
+};
+
 const PaymentScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
@@ -54,7 +71,7 @@ const PaymentScreen = () => {
     const appState = useRef(AppState.currentState);
 
     useEffect(() => {
-        if (!booking && bookingId) {
+        if (bookingId && (!booking || !hasPopulatedMovie(booking))) {
             fetchBooking();
         } else if (booking) {
             if (booking.status === 'CONFIRMED' || booking.status === 'CANCELLED') {
@@ -229,8 +246,6 @@ const PaymentScreen = () => {
                 paymentUrlRes.data.success &&
                 paymentUrlRes.data.data.paymentUrl
             ) {
-                // Not clearing payment or replacing navigation yet, just open url
-                // Return to app will be handled by AppState
                 Linking.openURL(paymentUrlRes.data.data.paymentUrl);
             } else {
                 throw new Error('Failed to get payment url');
@@ -319,6 +334,7 @@ const PaymentScreen = () => {
 
     const showtime = booking?.showtime || {};
     const movie = showtime.movie || {};
+    const movieImageUri = getMovieImageUri(movie);
     const screen = showtime.screen || {};
     const theater = screen.theater || {};
     const seats = booking?.seats || [];
@@ -346,14 +362,9 @@ const PaymentScreen = () => {
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Thông tin đặt vé</Text>
                     <View style={styles.movieInfoContainer}>
-                        {movie.image && (
+                        {!!movieImageUri && (
                             <Image
-                                source={{
-                                    uri:
-                                        typeof movie.image === 'string'
-                                            ? movie.image
-                                            : movie.image?.url,
-                                }}
+                                source={{ uri: movieImageUri }}
                                 style={styles.movieImage}
                             />
                         )}

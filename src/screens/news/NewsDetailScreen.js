@@ -74,7 +74,9 @@ const NewsDetailScreen = () => {
                         <Text style={styles.title}>{news.title}</Text>
                         {!!news.subTitle && <Text style={styles.subTitle}>{news.subTitle}</Text>}
                         <Text style={styles.author}>{news.author}</Text>
-                        <Text style={styles.contentText}>{news.content || news.description}</Text>
+                        <Text style={styles.contentText}>
+                            {news.content || news.description || news.summary}
+                        </Text>
                     </ScrollView>
                 )
             )}

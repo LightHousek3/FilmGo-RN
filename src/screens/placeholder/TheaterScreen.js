@@ -58,6 +58,10 @@ const parseDistanceKm = (theater) => {
 const mapTheater = (theater, index) => {
     const distanceKm = parseDistanceKm(theater);
     const distanceLabel = theater?.distanceText || formatDistance(distanceKm);
+    const availableFormats = Array.isArray(theater.formats) ? theater.formats : ['2D', '3D'];
+    const formats = availableFormats
+        .map((format) => String(format).toUpperCase())
+        .filter((format) => format === '2D' || format === '3D');
 
     return {
         id: theater._id || theater.id || `theater-${index}`,
@@ -65,11 +69,9 @@ const mapTheater = (theater, index) => {
         address: theater.address || theater.location || 'Địa chỉ đang được cập nhật',
         phone: theater.phone || 'Đang cập nhật',
         imageUrl: theater.image?.url || THEATER_PLACEHOLDER,
-        rating: Number(theater.rating || 4.5).toFixed(1),
         distanceLabel,
         distanceKm,
-        screenCount: theater.screenCount || theater.screens?.length || theater.numberOfScreens || 0,
-        formats: theater.formats || ['2D', '3D', 'IMAX', 'Dolby Atmos'],
+        formats: formats.length ? formats : ['2D', '3D'],
         raw: theater,
     };
 };
@@ -251,16 +253,10 @@ const TheaterScreen = ({ navigation }) => {
                         </Text>
 
                         <View className="mt-2 flex-row items-center">
-                            <Ionicons name="star" size={18} color="#F7B500" />
-                            <Text className="ml-1 text-[17px] font-semibold text-white">
-                                {item.rating}
-                            </Text>
-
                             <Ionicons
                                 name="location-outline"
                                 size={17}
                                 color="#FF7A00"
-                                style={{ marginLeft: 16 }}
                             />
                             {!!item.distanceLabel && (
                                 <Text className="ml-1 text-[17px] font-semibold text-[#FF9A2C]">
@@ -272,24 +268,13 @@ const TheaterScreen = ({ navigation }) => {
                 </View>
 
                 <View className="border-t border-white/10 px-4 py-3">
-                    <View className="flex-row items-center justify-between">
-                        <View className="flex-row items-center">
-                            <Ionicons name="time-outline" size={18} color="#757D89" />
-                            <Text className="ml-2 text-base text-white">08:00 - 23:30</Text>
-                        </View>
-
-                        <View className="flex-row items-center">
-                            <Ionicons name="call-outline" size={18} color="#757D89" />
-                            <Text className="ml-2 text-base text-white">{item.phone}</Text>
-                        </View>
+                    <View className="flex-row items-center">
+                        <Ionicons name="call-outline" size={18} color="#757D89" />
+                        <Text className="ml-2 text-base text-white">{item.phone}</Text>
                     </View>
 
-                    <Text className="mt-2 text-base text-[#8B95A2]">
-                        {item.screenCount || 6} phòng chiếu
-                    </Text>
-
                     <View className="mt-2 flex-row flex-wrap">
-                        {item.formats.slice(0, 4).map((format) => (
+                        {item.formats.map((format) => (
                             <View
                                 key={`${item.id}-${format}`}
                                 className="mr-2 rounded-full border px-3 py-1"

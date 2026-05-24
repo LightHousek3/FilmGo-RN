@@ -57,11 +57,44 @@ const formatDateVi = (value) => {
 };
 
 const toTimeLabel = (value) => {
+    if (!value || typeof value !== 'string') {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '--:--';
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+    }
+
+    const timeMatch = value.match(/T(\d{2}:\d{2})/);
+    if (timeMatch?.[1]) {
+        return timeMatch[1];
+    }
+
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '--:--';
     const h = String(date.getHours()).padStart(2, '0');
     const m = String(date.getMinutes()).padStart(2, '0');
     return `${h}:${m}`;
+};
+
+const parseShowtimeDate = (value) => {
+    if (typeof value === 'string') {
+        const matched = value.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+        if (matched) {
+            const [, year, month, day, hour, minute] = matched;
+            return new Date(
+                Number(year),
+                Number(month) - 1,
+                Number(day),
+                Number(hour),
+                Number(minute),
+                0,
+                0,
+            );
+        }
+    }
+
+    return new Date(value);
 };
 
 const isSameDate = (first, second) => {
@@ -83,7 +116,7 @@ const mapShowtimesByMovie = (showtimes, selectedDate) => {
     const grouped = new Map();
 
     showtimes.forEach((showtime, index) => {
-        const startDate = new Date(showtime.startTime);
+        const startDate = parseShowtimeDate(showtime.startTime);
         if (Number.isNaN(startDate.getTime()) || !isSameDate(startDate, selectedDate)) {
             return;
         }
@@ -101,7 +134,6 @@ const mapShowtimesByMovie = (showtimes, selectedDate) => {
                 ageRating: movie.ageRating || 'T13',
                 duration: movie.duration,
                 releaseDate: movie.releaseDate,
-                rating: Number(movie.rating || movie.voteAverage || 8.0).toFixed(1),
                 languageTag: showtime.language || '2D PHỤ ĐỀ',
                 showtimes: [],
             });
@@ -142,7 +174,7 @@ const TheaterShowtimesScreen = ({ navigation, route }) => {
             const response = await showtimeApi.getShowtimes({
                 theaterId: theater._id || theater.id,
                 date: toDateKey(selectedDate),
-                limit: 200,
+                limit: 100,
             });
 
             setShowtimes(extractList(response));
@@ -179,9 +211,7 @@ const TheaterShowtimesScreen = ({ navigation, route }) => {
                     >
                         {theater.name || 'Rạp chiếu phim'}
                     </Text>
-                    <View className="h-10 w-10 items-center justify-center">
-                        <Ionicons name="navigate-outline" size={30} color="#1E5AA8" />
-                    </View>
+                    <View className="h-10 w-10" />
                 </View>
 
                 <View className="mt-2 flex-row items-start px-1">
@@ -312,13 +342,6 @@ const TheaterShowtimesScreen = ({ navigation, route }) => {
                                                 </Text>
                                             </View>
                                         </View>
-
-                                        <View className="mt-2 flex-row items-center">
-                                            <Ionicons name="star" size={20} color="#F7B500" />
-                                            <Text className="ml-1 text-[18px] font-semibold text-[#2D2F35]">
-                                                {item.rating}
-                                            </Text>
-                                        </View>
                                     </View>
                                 </View>
 
@@ -331,7 +354,11 @@ const TheaterShowtimesScreen = ({ navigation, route }) => {
                                         <TouchableOpacity
                                             key={showtime.id}
                                             activeOpacity={0.8}
-                                            onPress={() => navigation.navigate("SeatSelection", { showtimeId: showtime.id })}
+                                            onPress={() =>
+                                                navigation.navigate('SeatSelection', {
+                                                    showtimeId: showtime.id,
+                                                })
+                                            }
                                             className="rounded-xl border border-[#D7DCE5] px-7 py-3"
                                             style={{ minWidth: 108 }}
                                         >

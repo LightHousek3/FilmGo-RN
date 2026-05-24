@@ -457,6 +457,24 @@ const HomeScreen = ({ navigation }) => {
         [navigation],
     );
 
+    const handlePromotionPress = useCallback(
+        (promotion) => {
+            const promotionId = promotion?._id || promotion?.id;
+            if (!promotionId) return;
+            navigation.navigate('PromotionDetail', { promotionId });
+        },
+        [navigation],
+    );
+
+    const handleNewsPress = useCallback(
+        (item) => {
+            const id = item?._id || item?.id;
+            if (!id) return;
+            navigation.navigate('NewsDetail', { id, item });
+        },
+        [navigation],
+    );
+
     // Single location button shared by both carousels
     const locationBtn = useMemo(
         () => <LocationButton value={location} onPress={() => setLocationModalVisible(true)} />,
@@ -486,7 +504,7 @@ const HomeScreen = ({ navigation }) => {
                 }
             >
                 {/* Banner Slider */}
-                {/* <BannerSlider banners={banners} /> */}
+                <BannerSlider banners={banners} />
 
                 {/* Now Showing Carousel – location button filters both lists */}
                 <MovieCarousel
@@ -500,10 +518,10 @@ const HomeScreen = ({ navigation }) => {
                 <ComingSoonSection movies={comingSoon} onMoviePress={handleMoviePress} />
 
                 {/* Promotions */}
-                <PromotionSection promotions={promotions} />
+                <PromotionSection promotions={promotions} onPromotionPress={handlePromotionPress} />
 
                 {/* News */}
-                <NewsSection news={news} />
+                <NewsSection news={news} onNewsPress={handleNewsPress} />
 
                 {/* Bottom spacing */}
                 <View className="h-4" />

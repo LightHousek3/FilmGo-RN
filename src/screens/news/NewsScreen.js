@@ -71,7 +71,7 @@ const NewsCard = ({ item, navigation }) => (
                 {item.title}
             </Text>
             <Text style={styles.summaryText} numberOfLines={2}>
-                {item.description || item.subTitle}
+                {item.description || item.subTitle || item.summary}
             </Text>
         </View>
     </TouchableOpacity>
